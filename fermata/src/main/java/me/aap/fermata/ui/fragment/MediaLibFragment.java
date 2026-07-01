@@ -197,6 +197,7 @@ public abstract class MediaLibFragment extends MainActivityFragment implements M
 
 		if (b.isVideoMode()) {
 			b.setMode(ad.isCarActivity() ? BodyLayout.Mode.FRAME : BodyLayout.Mode.BOTH);
+			if (ad.isCarActivity()) ad.post(() -> MediaItemListView.focusActive(ad.getContext(), null));
 			return true;
 		}
 

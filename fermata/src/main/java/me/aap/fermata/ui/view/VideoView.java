@@ -455,7 +455,7 @@ public class VideoView extends FrameLayout
 			}
 		}
 
-		return super.onKeyUp(keyCode, event);
+		return super.onKeyDown(keyCode, event);
 	}
 
 	private boolean onTouch(@NonNull MotionEvent e) {

@@ -313,7 +313,13 @@ public class MainCarActivity extends CarActivity implements FermataActivity {
 			}
 		}
 
-		return d.onKeyUp(keyCode, keyEvent, super::onKeyDown);
+		return d.onKeyUp(keyCode, keyEvent, super::onKeyUp);
+	}
+
+	@Override
+	@SuppressWarnings("deprecation")
+	public void onBackPressed() {
+		getActivityDelegate().onSuccess(MainActivityDelegate::onBackPressed);
 	}
 
 	@Override
