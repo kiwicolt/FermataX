@@ -198,6 +198,14 @@ public class TvFragment extends MediaLibFragment {
 		return true;
 	}
 
+	@Override
+	public FutureSupplier<?> refresh() {
+		BrowsableItem parent = getAdapter().getParent();
+		XtreamSourceItem source = getXtreamSource(parent);
+		if ((source != null) && (source != parent)) source.clearCache();
+		return super.refresh();
+	}
+
 	private void addM3uSource(TvM3uFile m3u) {
 		MainActivityDelegate a = getMainActivity();
 		if (m3u != null) getRootItem().addSource(m3u);
@@ -233,6 +241,13 @@ public class TvFragment extends MediaLibFragment {
 	private boolean isRootItem() {
 		BrowsableItem p = getAdapter().getParent();
 		return (p == null) || (p instanceof TvRootItem);
+	}
+
+	private XtreamSourceItem getXtreamSource(BrowsableItem item) {
+		for (BrowsableItem i = item; i != null; i = i.getParent()) {
+			if (i instanceof XtreamSourceItem) return (XtreamSourceItem) i;
+		}
+		return null;
 	}
 
 	private class TvAdapter extends ListAdapter {

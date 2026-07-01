@@ -235,7 +235,9 @@ public class TvRootItem extends ItemContainer<TvSourceItem> implements TvItem {
 			XtreamAccount.save(e, counter, source);
 		}
 
-		addItem(XtreamSourceItem.create(this, source));
+		XtreamSourceItem item = XtreamSourceItem.create(this, source);
+		item.warmUp();
+		addItem(item);
 	}
 
 	public void updateSource(XtreamAccount account) {

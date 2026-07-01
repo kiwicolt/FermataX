@@ -7,6 +7,7 @@ import androidx.annotation.NonNull;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import me.aap.fermata.addon.tv.R;
 import me.aap.fermata.BuildConfig;
@@ -75,9 +76,18 @@ public class XtreamSourceItem extends ItemContainer<XtreamSectionItem> implement
 	}
 
 	public void setAccount(XtreamAccount account) {
+		if (sameAccount(this.account, account)) return;
 		this.account = account;
 		clearApiCache();
 		updateTitles();
+	}
+
+	public void warmUp() {
+		getApi().warmUp();
+	}
+
+	public void clearCache() {
+		clearApiCache();
 	}
 
 	@Override
@@ -91,7 +101,7 @@ public class XtreamSourceItem extends ItemContainer<XtreamSectionItem> implement
 
 	@Override
 	protected FutureSupplier<List<Item>> listChildren() {
-		getApi().warmUp();
+		warmUp();
 		List<Item> children = new ArrayList<>(3);
 		children.add(XtreamSectionItem.create(this, XtreamSectionItem.TYPE_LIVE));
 		children.add(XtreamSectionItem.create(this, XtreamSectionItem.TYPE_VOD));
@@ -112,6 +122,7 @@ public class XtreamSourceItem extends ItemContainer<XtreamSectionItem> implement
 	@Override
 	public FutureSupplier<Void> refresh() {
 		clearApiCache();
+		warmUp();
 		return super.refresh();
 	}
 
@@ -119,6 +130,21 @@ public class XtreamSourceItem extends ItemContainer<XtreamSectionItem> implement
 		XtreamApi api = this.api;
 		if (api != null) api.clearCache();
 		this.api = new XtreamApi(account);
+	}
+
+	private static boolean sameAccount(XtreamAccount a, XtreamAccount b) {
+		if (a == b) return true;
+		if ((a == null) || (b == null)) return false;
+		return (a.getSourceId() == b.getSourceId())
+				&& Objects.equals(a.getRawName(), b.getRawName())
+				&& (a.getSchemeIndex() == b.getSchemeIndex())
+				&& Objects.equals(a.getHost(), b.getHost())
+				&& (a.getPort() == b.getPort())
+				&& Objects.equals(a.getUsername(), b.getUsername())
+				&& Objects.equals(a.getPassword(), b.getPassword())
+				&& (a.getOutputIndex() == b.getOutputIndex())
+				&& Objects.equals(a.getUserAgent(), b.getUserAgent())
+				&& (a.getResponseTimeout() == b.getResponseTimeout());
 	}
 
 	@Override
