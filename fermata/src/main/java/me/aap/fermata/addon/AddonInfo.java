@@ -22,6 +22,7 @@ public class AddonInfo implements Comparable<AddonInfo> {
 	public final int order;
 	public final boolean hasSettings;
 	public final boolean isAuto;
+	public final boolean enableByDefault;
 	public final String[] depends;
 	public final PreferenceStore.Pref<BooleanSupplier> enabledPref;
 
@@ -34,6 +35,7 @@ public class AddonInfo implements Comparable<AddonInfo> {
 		this.order = (order == null) ? 1000 : order;
 		this.hasSettings = (hasSettings == null) || hasSettings;
 		this.isAuto = isAuto;
+		this.enableByDefault = (enabled == null) || enabled;
 		this.depends = CollectionUtils.filter(asList(depends.split("[, \\[\\]]")), s -> !s.isEmpty())
 				.toArray(new String[0]);
 		enabledPref = PreferenceStore.Pref.b(className + "_enabled",

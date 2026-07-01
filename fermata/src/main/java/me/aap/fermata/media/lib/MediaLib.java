@@ -77,6 +77,9 @@ public interface MediaLib {
 	Favorites getFavorites();
 
 	@NonNull
+	Recent getRecent();
+
+	@NonNull
 	Playlists getPlaylists();
 
 	@NonNull
@@ -729,6 +732,23 @@ public interface MediaLib {
 		@Override
 		default int getIcon() {
 			return R.drawable.favorite_filled;
+		}
+	}
+
+	interface Recent extends BrowsableItem {
+
+		boolean isRecentItemId(String id);
+
+		FutureSupplier<Void> addItem(PlayableItem i);
+
+		FutureSupplier<Void> removeItem(int idx);
+
+		@SuppressWarnings("UnusedReturnValue")
+		FutureSupplier<Void> moveItem(int fromPosition, int toPosition);
+
+		@Override
+		default int getIcon() {
+			return R.drawable.timer;
 		}
 	}
 

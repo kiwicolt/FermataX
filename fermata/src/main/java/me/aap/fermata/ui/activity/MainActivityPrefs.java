@@ -64,8 +64,7 @@ public interface MainActivityPrefs
 	Pref<Supplier<String>> VOICE_CONTROL_LANG =
 			Pref.s("VOICE_CONTROL_LANG", () -> Locale.getDefault().toLanguageTag());
 	Pref<IntSupplier> CLOCK_POS = Pref.i("CLOCK_POS", CLOCK_POS_NONE);
-	Pref<IntSupplier> LOCALE =
-			Pref.i("LOCALE", () -> Lang.get(Locale.getDefault().getLanguage()).ordinal());
+	Pref<IntSupplier> LOCALE = Pref.i("LOCALE", Lang.EN.ordinal());
 
 	Pref<IntSupplier> THEME_AA = Pref.i("THEME_AA", THEME_DARK);
 	Pref<BooleanSupplier> HIDE_BARS_AA = AUTO ? Pref.b("HIDE_BARS_AA", false) : null;

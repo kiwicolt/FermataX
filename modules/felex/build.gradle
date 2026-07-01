@@ -12,8 +12,7 @@ ext {
                     name : 'felex',
                     icon : 'felex',
                     class: 'me.aap.fermata.addon.felex.FelexAddon',
-                    order: 4,
-                    enabled: false
+                    order: 4
             ]
     ]
 }

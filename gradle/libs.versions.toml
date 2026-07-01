@@ -1,6 +1,6 @@
 [versions]
 # App
-appVersionCode = "267"
+appVersionCode = "288"
 appVersionName = "2.0.1"
 
 # Build tooling
@@ -24,6 +24,7 @@ androidxFragment = "1.8.9"
 androidxLegacySupport = "1.0.0"
 androidxLocalbroadcastmanager = "1.1.0"
 androidxMedia = "1.8.0"
+androidxSecurityCrypto = "1.1.0"
 androidxSwiperefreshlayout = "1.2.0"
 androidxTvprovider = "1.1.0"
 androidxWebkit = "1.16.0"
@@ -93,6 +94,7 @@ androidxFragment                  = { group = "androidx.fragment",              
 androidxLegacySupportCore         = { group = "androidx.legacy",                    name = "legacy-support-core-utils",     version.ref = "androidxLegacySupport" }
 androidxLocalbroadcastmanager     = { group = "androidx.localbroadcastmanager",     name = "localbroadcastmanager",         version.ref = "androidxLocalbroadcastmanager" }
 androidxMedia                     = { group = "androidx.media",                     name = "media",                         version.ref = "androidxMedia" }
+androidxSecurityCrypto            = { group = "androidx.security",                  name = "security-crypto",               version.ref = "androidxSecurityCrypto" }
 androidxSwiperefreshlayout        = { group = "androidx.swiperefreshlayout",        name = "swiperefreshlayout",            version.ref = "androidxSwiperefreshlayout" }
 androidxTvprovider                = { group = "androidx.tvprovider",                name = "tvprovider",                    version.ref = "androidxTvprovider" }
 androidxWebkit                    = { group = "androidx.webkit",                    name = "webkit",                        version.ref = "androidxWebkit" }

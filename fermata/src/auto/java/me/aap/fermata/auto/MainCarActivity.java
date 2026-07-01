@@ -70,7 +70,9 @@ public class MainCarActivity extends CarActivity implements FermataActivity {
 	private FutureSupplier<MainActivityDelegate> delegate =
 			(FutureSupplier<MainActivityDelegate>) NO_DELEGATE;
 	private CarEditText editText;
+	private EditText activeInput;
 	private TextWatcher textWatcher;
+	private CarKeyboardOverlay keyboardOverlay;
 
 	@NonNull
 	@Override
@@ -186,20 +188,16 @@ public class MainCarActivity extends CarActivity implements FermataActivity {
 	@Override
 	public EditText startInput(TextWatcher w) {
 		if (editText == null) editText = new CarEditText(this);
-		if (textWatcher != null) editText.removeTextChangedListener(textWatcher);
-		editText.addTextChangedListener(w);
-		textWatcher = w;
+		setActiveInput(editText, w);
 		getActivityDelegate().onSuccess(a -> {
 			if (a.getPrefs().getVoiceControlEnabledPref()) {
 				a.startSpeechRecognizer(null, true).onCompletion((q, err) -> {
 					stopInput();
 					if (err instanceof OperationCanceledException) {
-						textWatcher = w;
-						editText.removeTextChangedListener(w);
-						editText.addTextChangedListener(w);
+						setActiveInput(editText, w);
 						if (w instanceof OnEditorActionListener)
 							editText.setOnEditorActionListener((OnEditorActionListener) w);
-						a().startInput(editText);
+						startCarInput(editText, false);
 					} else if ((q != null) && !q.isEmpty()) {
 						editText.setText(q.get(0));
 						w.afterTextChanged(editText.getText());
@@ -208,37 +206,78 @@ public class MainCarActivity extends CarActivity implements FermataActivity {
 					}
 				});
 			} else {
-				a().startInput(editText);
+				startCarInput(editText, false);
 			}
 		});
 		return editText;
 	}
 
-	public void stopInput() {
-		if (editText != null) {
-			if (textWatcher != null) editText.removeTextChangedListener(textWatcher);
-			editText.setOnEditorActionListener(null);
+	@Override
+	public EditText startInput(EditText target, boolean submitOnEnter, TextWatcher w) {
+		if (!(target instanceof CarEditText input)) {
+			return startInput(w);
+		}
+		setActiveInput(input, w);
+		startCarInput(input, submitOnEnter);
+		return input;
+	}
+
+	private void setActiveInput(EditText input, TextWatcher w) {
+		if ((activeInput != null) && (textWatcher != null)) {
+			activeInput.removeTextChangedListener(textWatcher);
+			activeInput.setOnEditorActionListener(null);
 		}
 
+		activeInput = input;
+		textWatcher = w;
+		input.setOnEditorActionListener(null);
+		input.addTextChangedListener(w);
+	}
+
+	private void startCarInput(CarEditText input, boolean submitOnEnter) {
+		getWindow().getDecorView().post(() -> {
+			if (input != activeInput) return;
+			input.requestFocus();
+			getKeyboardOverlay().show(input, submitOnEnter);
+		});
+	}
+
+	private CarKeyboardOverlay getKeyboardOverlay() {
+		if (keyboardOverlay == null) keyboardOverlay = new CarKeyboardOverlay(this);
+		return keyboardOverlay;
+	}
+
+	public void stopInput() {
+		if (keyboardOverlay != null) keyboardOverlay.dismiss();
+		if (activeInput != null) {
+			if (textWatcher != null) activeInput.removeTextChangedListener(textWatcher);
+			activeInput.setOnEditorActionListener(null);
+		}
+
+		activeInput = null;
+		textWatcher = null;
 		a().stopInput();
 	}
 
 	public boolean isInputActive() {
-		return a().isInputActive();
+		return ((keyboardOverlay != null) && keyboardOverlay.isShowing()) || a().isInputActive();
 	}
 
 	public EditText createEditText(Context ctx) {
 		CarEditText et = new CarEditText(ctx);
 		et.setOnClickListener(v -> {
-			if (!a().isInputActive()) a().startInput(et);
+			if (!a().isInputActive()) {
+				et.requestFocus();
+				getKeyboardOverlay().show(et, false);
+			}
 		});
 		return et;
 	}
 
 	@Override
 	public boolean setTextInput(String text) {
-		if ((editText == null) || !isInputActive()) return false;
-		editText.setText(text);
+		if (activeInput == null) return false;
+		activeInput.setText(text);
 		stopInput();
 		return true;
 	}
@@ -246,6 +285,9 @@ public class MainCarActivity extends CarActivity implements FermataActivity {
 	@Override
 	public boolean onKeyUp(int keyCode, KeyEvent keyEvent) {
 		Log.i(keyEvent);
+		if ((keyboardOverlay != null) && keyboardOverlay.isShowing()) {
+			if (keyCode == KEYCODE_BACK) return true;
+		}
 		MainActivityDelegate d = delegate.peek();
 		if (d == null) return super.onKeyUp(keyCode, keyEvent);
 
@@ -277,6 +319,7 @@ public class MainCarActivity extends CarActivity implements FermataActivity {
 	@Override
 	public boolean onKeyDown(int keyCode, KeyEvent keyEvent) {
 		Log.i(keyEvent);
+		if ((keyboardOverlay != null) && keyboardOverlay.onKeyDown(keyCode, keyEvent)) return true;
 		MainActivityDelegate d = delegate.peek();
 		if (d == null) return super.onKeyDown(keyCode, keyEvent);
 		if (!d.getPrefs().useDpadCursor(d)) return d.onKeyDown(keyCode, keyEvent, super::onKeyDown);

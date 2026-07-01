@@ -58,6 +58,10 @@ public class FermataChromeClient extends WebChromeClient {
 		return web;
 	}
 
+	protected FermataChromeClient createReplacement(FermataWebView web) {
+		return new FermataChromeClient(web, fullScreenView);
+	}
+
 	@Override
 	public boolean onJsAlert(WebView view, String url, String message, JsResult result) {
 		Context ctx = view.getContext();

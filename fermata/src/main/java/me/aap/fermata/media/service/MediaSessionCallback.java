@@ -1440,6 +1440,7 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback
 	}
 
 	private void setLastPlayed(PlayableItem i, long position) {
+		lib.getRecent().addItem(i);
 		if (i.isExternal()) return;
 
 		if (position < 0) {

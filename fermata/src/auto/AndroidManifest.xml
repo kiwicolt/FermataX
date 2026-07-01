@@ -17,10 +17,6 @@
         android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:ignore="ScopedStorage" />
 
-    <uses-feature
-        android:name="android.hardware.type.automotive"
-        android:required="true" />
-
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />

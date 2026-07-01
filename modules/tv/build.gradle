@@ -23,4 +23,5 @@ dependencies {
     implementation libs.androidxMedia
     implementation libs.androidxAppcompat
     implementation libs.androidMaterial
+    implementation libs.androidxSecurityCrypto
 }

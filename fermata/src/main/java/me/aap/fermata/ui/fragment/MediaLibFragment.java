@@ -196,7 +196,7 @@ public abstract class MediaLibFragment extends MainActivityFragment implements M
 		BodyLayout b = ad.getBody();
 
 		if (b.isVideoMode()) {
-			b.setMode(BodyLayout.Mode.BOTH);
+			b.setMode(ad.isCarActivity() ? BodyLayout.Mode.FRAME : BodyLayout.Mode.BOTH);
 			return true;
 		}
 

@@ -15,8 +15,8 @@ import androidx.annotation.Nullable;
 
 import me.aap.fermata.BuildConfig;
 import me.aap.fermata.addon.tv.R;
-import me.aap.fermata.addon.tv.TvItem;
 import me.aap.fermata.addon.tv.TvRootItem;
+import me.aap.fermata.addon.tv.TvSourceItem;
 import me.aap.fermata.media.lib.DefaultMediaLib;
 import me.aap.fermata.media.lib.M3uGroupItem;
 import me.aap.fermata.media.lib.M3uItem;
@@ -33,7 +33,7 @@ import me.aap.utils.vfs.VirtualResource;
 /**
  * @author Andrey Pavlenko
  */
-public class TvM3uItem extends M3uItem implements TvItem {
+public class TvM3uItem extends M3uItem implements TvSourceItem {
 	public static final String SCHEME = "tvm3u";
 	private String tvgUrl;
 	private final FutureRef<XmlTv> xmlTv = new FutureRef<XmlTv>() {
@@ -92,6 +92,16 @@ public class TvM3uItem extends M3uItem implements TvItem {
 	@Override
 	protected String getScheme() {
 		return SCHEME;
+	}
+
+	@Override
+	public int getSourceId() {
+		return Integer.parseInt(getId().substring(SCHEME.length() + 1));
+	}
+
+	@Override
+	public String getSourceType() {
+		return TYPE_M3U;
 	}
 
 	@Override

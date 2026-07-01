@@ -631,6 +631,7 @@ public class SettingsFragment extends MainActivityFragment
 		sub1 = set.subSet(o -> o.title = R.string.subtitles);
 		addSubtitlePrefs(a.getContext(), sub1, mediaPrefs, isCar);
 
+		addDashboard(a, set);
 		addAddons(set);
 
 		sub1 = set.subSet(o -> o.title = R.string.other);
@@ -759,6 +760,66 @@ public class SettingsFragment extends MainActivityFragment
 			o.seekMin = 10;
 			o.seekMax = 40;
 		});
+	}
+
+	private void addDashboard(MainActivityDelegate a, PreferenceSet set) {
+		PreferenceStore dashboardStore = a.getPrefs();
+		PreferenceStore addonStore = FermataApplication.get().getPreferenceStore();
+		PreferenceSet sub = set.subSet(o -> {
+			o.title = R.string.dashboard;
+			o.subtitle = R.string.dashboard_order_sub;
+			o.icon = R.drawable.launcher;
+		});
+
+		sub.addButton(o -> {
+			o.title = R.string.open_dashboard;
+			o.icon = R.drawable.launcher;
+			o.onClick = a::showDashboard;
+		});
+
+		sub.addButton(o -> {
+			o.title = R.string.reset_dashboard_order;
+			o.icon = R.drawable.refresh;
+			o.onClick = () -> {
+				DashboardItems.reset(dashboardStore);
+				refreshPrefs(sub);
+			};
+		});
+
+		Context itemCtx = a.getLocalizedContext(a.getContext());
+		for (DashboardItems.Item item : DashboardItems.getConfigItems(itemCtx, dashboardStore)) {
+			PreferenceSet itemSet = sub.subSet(o -> {
+				o.ctitle = item.title;
+				o.icon = item.icon;
+			});
+
+			if (item.addonInfo != null) {
+				itemSet.addBooleanPref(o -> {
+					o.title = R.string.enable;
+					o.pref = item.addonInfo.enabledPref;
+					o.store = addonStore;
+				});
+			}
+
+			itemSet.addButton(o -> {
+				o.title = R.string.move_up;
+				o.icon = R.drawable.pg_up;
+				o.onClick = () -> {
+					if (DashboardItems.move(dashboardStore, item.name, -1)) refreshPrefs(sub);
+				};
+			});
+			itemSet.addButton(o -> {
+				o.title = R.string.move_down;
+				o.icon = R.drawable.pg_down;
+				o.onClick = () -> {
+					if (DashboardItems.move(dashboardStore, item.name, 1)) refreshPrefs(sub);
+				};
+			});
+		}
+	}
+
+	private void refreshPrefs(PreferenceSet set) {
+		if (adapter != null) adapter.setPreferenceSet(set);
 	}
 
 	private void addAddons(PreferenceSet set) {

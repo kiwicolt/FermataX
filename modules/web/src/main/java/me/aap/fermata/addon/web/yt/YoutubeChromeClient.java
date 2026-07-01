@@ -30,6 +30,11 @@ public class YoutubeChromeClient extends FermataChromeClient {
 		return (VideoView) super.getFullScreenView();
 	}
 
+	@Override
+	public YoutubeChromeClient createReplacement(FermataWebView web) {
+		return new YoutubeChromeClient(web, getFullScreenView());
+	}
+
 	protected void addCustomView(View view) {
 		VideoView vv = getFullScreenView();
 		((ViewGroup) vv.getChildAt(0)).addView(view, new ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT));

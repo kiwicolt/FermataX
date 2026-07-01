@@ -17,6 +17,9 @@ import me.aap.fermata.addon.tv.m3u.TvM3uFile;
 import me.aap.fermata.addon.tv.m3u.TvM3uFileSystem;
 import me.aap.fermata.addon.tv.m3u.TvM3uFileSystemProvider;
 import me.aap.fermata.addon.tv.m3u.TvM3uItem;
+import me.aap.fermata.addon.tv.xtream.XtreamAccount;
+import me.aap.fermata.addon.tv.xtream.XtreamFileSystemProvider;
+import me.aap.fermata.addon.tv.xtream.XtreamSourceItem;
 import me.aap.fermata.media.lib.DefaultMediaLib;
 import me.aap.fermata.media.lib.MediaLib;
 import me.aap.fermata.media.lib.MediaLib.BrowsableItem;
@@ -79,9 +82,35 @@ public class TvFragment extends MediaLibFragment {
 	}
 
 	public void addSource() {
+		getMainActivity().getContextMenu().show(b -> {
+			b.setTitle(R.string.add_tv_source);
+			b.setSelectionHandler(this::sourceTypeSelected);
+			b.addItem(me.aap.fermata.R.id.m3u_playlist, me.aap.fermata.R.drawable.m3u,
+					me.aap.fermata.R.string.m3u_playlist);
+			b.addItem(me.aap.fermata.R.id.xtream_source, me.aap.fermata.R.drawable.tv,
+					R.string.xtream_codes);
+		});
+	}
+
+	private boolean sourceTypeSelected(OverlayMenuItem item) {
+		int id = item.getItemId();
+		if (id == me.aap.fermata.R.id.m3u_playlist) {
+			addM3uSource();
+		} else if (id == me.aap.fermata.R.id.xtream_source) {
+			addXtreamSource();
+		}
+		return true;
+	}
+
+	private void addM3uSource() {
 		TvM3uFileSystemProvider prov = new TvM3uFileSystemProvider();
 		prov.select(getMainActivity(), Collections.singletonList(TvM3uFileSystem.getInstance())).main()
 				.onFailure(this::failedToAddSource).onSuccess(this::addM3uSource);
+	}
+
+	private void addXtreamSource() {
+		new XtreamFileSystemProvider().select(getMainActivity()).main()
+				.onFailure(this::failedToAddSource).onSuccess(this::addXtreamSource);
 	}
 
 	public TvRootItem getRootItem() {
@@ -91,7 +120,7 @@ public class TvFragment extends MediaLibFragment {
 
 	@Override
 	public void contributeToContextMenu(OverlayMenu.Builder b, MediaItemMenuHandler h) {
-		if (!(h.getItem() instanceof TvM3uItem)) return;
+		if (!(h.getItem() instanceof TvSourceItem)) return;
 		b.addItem(me.aap.fermata.R.id.edit, me.aap.fermata.R.drawable.edit,
 						me.aap.fermata.R.string.edit).setData(h.getItem())
 				.setHandler(this::contextMenuItemSelected);
@@ -104,16 +133,40 @@ public class TvFragment extends MediaLibFragment {
 	private boolean contextMenuItemSelected(OverlayMenuItem item) {
 		int id = item.getItemId();
 		if (id == me.aap.fermata.R.id.edit) {
-			TvM3uItem i = item.getData();
-			new TvM3uFileSystemProvider().edit(getMainActivity(), i.getResource())
-					.onCompletion((ok, err) -> {
-						if ((err != null) && !(err instanceof CancellationException)) {
-							Log.e(err, "Failed to edit TV source ", i);
-							UiUtils.showAlert(getContext(), err.getLocalizedMessage());
-						}
-						getMainActivity().showFragment(getFragmentId());
-						if ((ok != null) && ok) i.refresh().thenRun(this::refresh);
-					});
+			TvSourceItem source = item.getData();
+
+			if (source instanceof TvM3uItem) {
+				TvM3uItem i = (TvM3uItem) source;
+				new TvM3uFileSystemProvider().edit(getMainActivity(), i.getResource())
+						.onCompletion((ok, err) -> {
+							if ((err != null) && !(err instanceof CancellationException)) {
+								Log.e(err, "Failed to edit TV source ", i);
+								UiUtils.showAlert(getContext(), err.getLocalizedMessage());
+							}
+							getMainActivity().showFragment(getFragmentId());
+							if ((ok != null) && ok) i.refresh().thenRun(this::refresh);
+						});
+			} else if (source instanceof XtreamSourceItem) {
+				XtreamSourceItem i = (XtreamSourceItem) source;
+				new XtreamFileSystemProvider().edit(getMainActivity(), i.getAccount())
+						.onCompletion((account, err) -> {
+							if ((err != null) && !(err instanceof CancellationException)) {
+								Log.e(err, "Failed to edit TV source ", i);
+								UiUtils.showAlert(getContext(), err.getLocalizedMessage());
+							}
+							getMainActivity().showFragment(getFragmentId());
+							if (account != null) {
+								try {
+									getRootItem().updateSource(account);
+								} catch (RuntimeException ex) {
+									failedToAddSource(ex);
+									return;
+								}
+								i.setAccount(account);
+								i.refresh().thenRun(this::refresh);
+							}
+						});
+			}
 		} else if (id == me.aap.fermata.R.id.delete) {
 			TvRootItem root = getRootItem();
 			root.removeItem(item.getData()).onSuccess(v -> getAdapter().setParent(root));
@@ -148,6 +201,20 @@ public class TvFragment extends MediaLibFragment {
 	private void addM3uSource(TvM3uFile m3u) {
 		MainActivityDelegate a = getMainActivity();
 		if (m3u != null) getRootItem().addSource(m3u);
+		getAdapter().setParent(getRootItem());
+		a.showFragment(getFragmentId());
+	}
+
+	private void addXtreamSource(XtreamAccount account) {
+		MainActivityDelegate a = getMainActivity();
+		if (account != null) {
+			try {
+				getRootItem().addSource(account);
+			} catch (RuntimeException ex) {
+				failedToAddSource(ex);
+				return;
+			}
+		}
 		getAdapter().setParent(getRootItem());
 		a.showFragment(getFragmentId());
 	}

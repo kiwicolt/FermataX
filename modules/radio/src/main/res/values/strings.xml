@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="radio_popular">Popular</string>
+    <string name="radio_top_voted">Top voted</string>
+    <string name="radio_countries">Countries</string>
+    <string name="radio_tags">Tags</string>
+    <string name="radio_station_count">%1$d stations</string>
+</resources>

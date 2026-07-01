@@ -10,10 +10,10 @@ android {
 ext {
     addons = [
             [
-                    name   : 'chat',
-                    icon   : 'chat',
-                    class  : 'me.aap.fermata.addon.chat.ChatAddon',
-                    enabled: false
+                    name : 'chat',
+                    icon : 'chat',
+                    class: 'me.aap.fermata.addon.chat.ChatAddon',
+                    order: 5
             ]
     ]
 }

@@ -49,6 +49,7 @@ import android.net.Uri;
 import android.os.Build.VERSION;
 import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
+import android.os.LocaleList;
 import android.os.OperationCanceledException;
 import android.provider.Settings;
 import android.speech.RecognitionListener;
@@ -93,7 +94,6 @@ import me.aap.fermata.action.Key;
 import me.aap.fermata.addon.AddonManager;
 import me.aap.fermata.addon.FermataActivityAddon;
 import me.aap.fermata.addon.FermataAddon;
-import me.aap.fermata.addon.FermataFragmentAddon;
 import me.aap.fermata.addon.MediaLibAddon;
 import me.aap.fermata.media.engine.MediaEngineManager;
 import me.aap.fermata.media.lib.AtvInterface;
@@ -112,12 +112,14 @@ import me.aap.fermata.media.service.FermataServiceUiBinder;
 import me.aap.fermata.media.service.MediaSessionCallback;
 import me.aap.fermata.media.service.MediaSessionCallbackAssistant;
 import me.aap.fermata.ui.fragment.AudioEffectsFragment;
+import me.aap.fermata.ui.fragment.DashboardFragment;
 import me.aap.fermata.ui.fragment.FavoritesFragment;
 import me.aap.fermata.ui.fragment.FoldersFragment;
 import me.aap.fermata.ui.fragment.MainActivityFragment;
 import me.aap.fermata.ui.fragment.MediaLibFragment;
 import me.aap.fermata.ui.fragment.NavBarMediator;
 import me.aap.fermata.ui.fragment.PlaylistsFragment;
+import me.aap.fermata.ui.fragment.RecentFragment;
 import me.aap.fermata.ui.fragment.SettingsFragment;
 import me.aap.fermata.ui.fragment.SubtitlesFragment;
 import me.aap.fermata.ui.view.BodyLayout;
@@ -189,13 +191,33 @@ public class MainActivityDelegate extends ActivityDelegate
 
 	public static Context attachBaseContext(Context ctx) {
 		MainActivityPrefs prefs = Prefs.instance;
-		if (!prefs.hasPref(LOCALE)) return ctx;
+		return createLocaleContext(ctx, prefs.getLocalePref());
+	}
 
-		var cfg = ctx.getResources().getConfiguration();
-		var loc = prefs.getLocalePref();
-		cfg.setLocale(loc);
+	@NonNull
+	@Override
+	public Context getLocalizedContext(@NonNull Context ctx) {
+		return createLocaleContext(ctx, getPrefs().getLocalePref());
+	}
+
+	public static Context createLocaleContext(Context ctx, Locale loc) {
+		var cfg = new Configuration(ctx.getResources().getConfiguration());
+		setConfigLocale(cfg, loc);
 		Locale.setDefault(loc);
 		return ctx.createConfigurationContext(cfg);
+	}
+
+	@SuppressWarnings("deprecation")
+	private static void updateLocaleResources(Context ctx, Locale loc) {
+		Resources res = ctx.getResources();
+		var cfg = new Configuration(res.getConfiguration());
+		setConfigLocale(cfg, loc);
+		res.updateConfiguration(cfg, res.getDisplayMetrics());
+	}
+
+	private static void setConfigLocale(Configuration cfg, Locale loc) {
+		if (VERSION.SDK_INT >= VERSION_CODES.N) cfg.setLocales(new LocaleList(loc));
+		else cfg.setLocale(loc);
 	}
 
 	public static Uri toIntentUri(String action, String itemId) {
@@ -228,7 +250,7 @@ public class MainActivityDelegate extends ActivityDelegate
 		int navId;
 		int fragmentId;
 
-		if (state != null) {
+		if ((state != null) && state.getBoolean("restoreFragment", false)) {
 			navId = state.getInt("navId", ID_NULL);
 			fragmentId = state.getInt("fragmentId", ID_NULL);
 		} else {
@@ -333,29 +355,18 @@ public class MainActivityDelegate extends ActivityDelegate
 			return;
 		}
 
-		String showAddon = getPrefs().getShowAddonOnStartPref();
-		if (showAddon != null) {
-			FermataAddon addon = AddonManager.get().getAddon(showAddon);
+		showDashboard();
+		checkUpdates();
+	}
 
-			if (addon instanceof FermataFragmentAddon) {
-				showFragment(((FermataFragmentAddon) addon).getFragmentId());
-				checkUpdates();
-				return;
-			}
-		}
-
-		FutureSupplier<Boolean> f = goToCurrent().onCompletion((ok, fail1) -> {
-			if ((fail1 != null) && !isCancellation(fail1)) {
-				Log.e(fail1, "Last played track not found");
-			}
-			if ((ok == null) || !ok) showFragment(R.id.folders_fragment);
-			checkUpdates();
-		});
-
-		if (!f.isDone() || f.isFailed() || !Boolean.TRUE.equals(f.peek())) {
-			showFragment(R.id.folders_fragment);
-			setContentLoading(f);
-		}
+	public void showDashboard() {
+		hideActiveMenu();
+		View active = getNavBar().findViewById(getActiveNavItemId());
+		View dashboard = getNavBar().findViewById(R.id.dashboard_fragment);
+		if ((active != null) && (active != dashboard)) active.setSelected(false);
+		if (dashboard != null) dashboard.setSelected(true);
+		showFragment(R.id.dashboard_fragment);
+		setActiveNavItemId(R.id.dashboard_fragment);
 	}
 
 	private void checkUpdates() {
@@ -375,6 +386,7 @@ public class MainActivityDelegate extends ActivityDelegate
 	protected void onActivitySaveInstanceState(@NonNull Bundle outState) {
 		super.onActivitySaveInstanceState(outState);
 		if (isRecreating()) {
+			outState.putBoolean("restoreFragment", true);
 			outState.putInt("navId", getActiveNavItemId());
 			outState.putInt("fragmentId", getActiveFragmentId());
 		}
@@ -383,6 +395,31 @@ public class MainActivityDelegate extends ActivityDelegate
 	public void recreate() {
 		if (AUTO && isCarActivityNotMirror()) showAlert(getContext(), R.string.please_restart_app);
 		else getHandler().post(super::recreate);
+	}
+
+	private void refreshLocale() {
+		Locale loc = getPrefs().getLocalePref();
+		Locale.setDefault(loc);
+		updateLocaleResources(App.get(), loc);
+		updateLocaleResources(getContext(), loc);
+
+		NavBarView nb = navBar;
+		if (nb != null) {
+			updateLocaleResources(nb.getContext(), loc);
+			navBarMediator.reload(nb);
+		}
+
+		ToolBarView tb = toolBar;
+		if (tb != null) {
+			updateLocaleResources(tb.getContext(), loc);
+			ToolBarView.Mediator m = tb.getMediator();
+			if (m != null) {
+				m.disable(tb);
+				m.enable(tb, getActiveFragment());
+			}
+		}
+
+		if (getActiveFragment() instanceof DashboardFragment dashboard) dashboard.reload();
 	}
 
 	@Override
@@ -692,7 +729,7 @@ public class MainActivityDelegate extends ActivityDelegate
 
 	public void backToNavFragment() {
 		int id = getActiveNavItemId();
-		showFragment((id == ID_NULL) ? R.id.folders_fragment : id);
+		showFragment((id == ID_NULL) ? R.id.dashboard_fragment : id);
 	}
 
 	@Override
@@ -709,10 +746,14 @@ public class MainActivityDelegate extends ActivityDelegate
 	}
 
 	protected ActivityFragment createFragment(int id) {
-		if (id == R.id.folders_fragment) {
+		if (id == R.id.dashboard_fragment) {
+			return new DashboardFragment();
+		} else if (id == R.id.folders_fragment) {
 			return new FoldersFragment();
 		} else if (id == R.id.favorites_fragment) {
 			return new FavoritesFragment();
+		} else if (id == R.id.recent_fragment) {
+			return new RecentFragment();
 		} else if (id == R.id.playlists_fragment) {
 			return new PlaylistsFragment();
 		} else if (id == R.id.settings_fragment) {
@@ -771,6 +812,8 @@ public class MainActivityDelegate extends ActivityDelegate
 			showFragment(R.id.folders_fragment);
 		} else if (root instanceof MediaLib.Favorites) {
 			showFragment(R.id.favorites_fragment);
+		} else if (root instanceof MediaLib.Recent) {
+			showFragment(R.id.recent_fragment);
 		} else if (root instanceof MediaLib.Playlists) {
 			showFragment(R.id.playlists_fragment);
 		} else if (root instanceof ExtRoot) {
@@ -1080,7 +1123,8 @@ public class MainActivityDelegate extends ActivityDelegate
 		} else if (prefs.contains(CLOCK_POS)) {
 			getBody().getVideoView().setClockPos(getPrefs().getClockPosPref());
 		} else if (prefs.contains(LOCALE)) {
-			recreate();
+			if (AUTO && isCarActivityNotMirror()) refreshLocale();
+			else recreate();
 		}
 	}
 

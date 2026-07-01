@@ -10,8 +10,6 @@ import static me.aap.fermata.addon.web.yt.YoutubeJsInterface.JS_VIDEO_QUALITIES;
 
 import android.content.Context;
 import android.util.AttributeSet;
-import android.webkit.CookieManager;
-
 import androidx.annotation.NonNull;
 
 import java.util.List;
@@ -92,10 +90,11 @@ public class YoutubeWebView extends FermataWebView {
 
 	@Override
 	protected void pageLoaded(String uri) {
+		getAddon().setLastYoutubeUrl(uri);
 		attachListeners();
 		injectSponsorBlock();
 		addFocusHighlight();
-		CookieManager.getInstance().flush();
+		flushCookiesSoon();
 	}
 
 	protected void submitForm() {
@@ -110,28 +109,47 @@ public class YoutubeWebView extends FermataWebView {
 	}
 
 	private void attachListeners() {
-		String debug = BuildConfig.D ? JS_EVENT + "(" + JS_VIDEO_FOUND + ", null);\n" : "";
+		String debug = BuildConfig.D ? "event(" + JS_VIDEO_FOUND + ", null);\n" : "";
 		String scale = getAddon().getScale().prefName();
-		loadUrl("javascript:\n" +
-				"function attachVideoListeners(v) {\n" +
-				"  if (v.getAttribute('FermataAttached') === 'true') return;\n" +
-				"  v.setAttribute('FermataAttached', 'true');\n" +
-				"  v.setAttribute('style', 'object-fit:" + scale + "');\n" + debug +
-				"  if ((v.currentTime > 0) && !v.paused && !v.ended) " + JS_EVENT + "(" + JS_VIDEO_PLAYING +
-				", v.currentSrc);\n" +
-				"  v.addEventListener('playing', function(e) {" + JS_EVENT + "(" + JS_VIDEO_PLAYING +
-				", v.currentSrc);});\n" +
-				"  v.addEventListener('pause', function(e) {" + JS_EVENT + "(" + JS_VIDEO_PAUSED +
-				", v.currentSrc);});\n" +
-				"  v.addEventListener('ended', function(e) {" + JS_EVENT + "(" + JS_VIDEO_ENDED +
-				", null);});\n" +
-				"}\n" +
-				"function findVideo() {\n" +
-				"  var video = document.querySelectorAll('video');" +
-				"  video.forEach(attachVideoListeners);\n" +
-				"   setTimeout(findVideo, 1000);\n" +
-				"}\n" +
-				"findVideo();");
+		evaluateJavascript("""
+				(function() {
+				  const scale = '%s';
+				  const state = window.__fermataVideoState || (window.__fermataVideoState = {});
+				  if (state.observer) state.observer.disconnect();
+				  function event(code, data) {
+				    try { %s(code, data); } catch (err) {}
+				  }
+				  function attachVideoListeners(v) {
+				    if (!v || v.__fermataAttached) {
+				      if (v) v.style.objectFit = scale;
+				      return;
+				    }
+				    v.__fermataAttached = true;
+				    v.style.objectFit = scale;
+				    %s
+				    if ((v.currentTime > 0) && !v.paused && !v.ended) {
+				      event(%d, v.currentSrc || '');
+				    }
+				    v.addEventListener('playing', function() { event(%d, v.currentSrc || ''); });
+				    v.addEventListener('pause', function() { event(%d, v.currentSrc || ''); });
+				    v.addEventListener('ended', function() { event(%d, null); });
+				  }
+				  function scan(root) {
+				    if (!root) return;
+				    if (root.tagName === 'VIDEO') attachVideoListeners(root);
+				    if (root.querySelectorAll) root.querySelectorAll('video').forEach(attachVideoListeners);
+				  }
+				  scan(document);
+				  state.observer = new MutationObserver(function(records) {
+				    records.forEach(function(record) {
+				      record.addedNodes.forEach(scan);
+				    });
+				  });
+				  if (document.documentElement) {
+				    state.observer.observe(document.documentElement, { childList: true, subtree: true });
+				  }
+				})();""".formatted(scale, JS_EVENT, debug, JS_VIDEO_PLAYING, JS_VIDEO_PLAYING,
+				JS_VIDEO_PAUSED, JS_VIDEO_ENDED), null);
 	}
 
 	private void injectSponsorBlock() {
@@ -146,10 +164,10 @@ public class YoutubeWebView extends FermataWebView {
 	}
 
 	protected boolean requestFullScreen() {
-		loadUrl("javascript: var v = document.querySelector('video');\n" +
-				"if ('webkitRequestFullscreen' in v) v.webkitRequestFullscreen();\n" +
-				"else if ('requestFullscreen' in v) v.requestFullscreen();\n" +
-				"else " + JS_EVENT + "(" + JS_ERR + ", 'Method requestFullscreen not found in ' + v);");
+		evaluateJavascript("var v = document.querySelector('video');\n" +
+				"if (v && ('webkitRequestFullscreen' in v)) v.webkitRequestFullscreen();\n" +
+				"else if (v && ('requestFullscreen' in v)) v.requestFullscreen();\n" +
+				"else " + JS_EVENT + "(" + JS_ERR + ", 'Method requestFullscreen not found in ' + v);", null);
 		return true;
 	}
 
@@ -180,7 +198,6 @@ public class YoutubeWebView extends FermataWebView {
 		chrome.exitFullScreen().thenRun(() -> evaluateJavascript("""
 				function prevNextVideo() {
 				  const buttons = document.querySelectorAll('button.player-middle-controls-prev-next-button');
-				  console.log('Prev/Next buttons:', buttons);
 				  if (buttons) buttons[%d].click();
 				}
 				setTimeout(prevNextVideo, 600);
@@ -362,8 +379,8 @@ public class YoutubeWebView extends FermataWebView {
 	void setScale(YoutubeAddon.VideoScale scale) {
 		getAddon().setScale(scale);
 		String p = scale.prefName();
-		loadUrl("javascript:" +
+		evaluateJavascript(
 				"document.querySelectorAll('video')" +
-				".forEach(v=> v.setAttribute('style', 'object-fit:" + p + "'));");
+				".forEach(v => v.style.objectFit = '" + p + "');", null);
 	}
 }

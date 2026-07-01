@@ -27,9 +27,11 @@ import me.aap.utils.async.FutureSupplier;
 import me.aap.utils.async.Promise;
 import me.aap.utils.collection.CollectionUtils;
 import me.aap.utils.event.BasicEventBroadcaster;
+import me.aap.utils.function.BooleanSupplier;
 import me.aap.utils.log.Log;
 import me.aap.utils.module.DynamicModuleInstaller;
 import me.aap.utils.pref.PreferenceStore;
+import me.aap.utils.pref.PreferenceStore.Pref;
 import me.aap.utils.ui.activity.ActivityBase;
 import me.aap.utils.ui.fragment.ActivityFragment;
 
@@ -39,22 +41,40 @@ import me.aap.utils.ui.fragment.ActivityFragment;
 public class AddonManager extends BasicEventBroadcaster<AddonManager.Listener>
 		implements PreferenceStore.Listener {
 	private static final String CHANNEL_ID = "fermata.addon.install";
+	private static final Pref<BooleanSupplier> ADDONS_ENABLED_BY_DEFAULT =
+			Pref.b("ADDONS_ENABLED_BY_DEFAULT", false);
+	private static final Pref<BooleanSupplier> ADDONS_ENABLED_BY_DEFAULT_V2 =
+			Pref.b("ADDONS_ENABLED_BY_DEFAULT_V2", false);
 	private final Map<Object, FermataAddon> map = new HashMap<>();
 	private final List<FermataAddon> addons = new ArrayList<>(BuildConfig.ADDONS.length);
 	private final Map<String, FutureSupplier<?>> installing = new HashMap<>();
 
 	public AddonManager(PreferenceStore store) {
+		enableAddonsByDefault(store);
+
 		for (AddonInfo i : BuildConfig.ADDONS) {
 			if (!BuildConfig.AUTO && i.isAuto) continue;
 			if (!store.getBooleanPref(i.enabledPref)) continue;
-			try {
-				FermataAddon a = (FermataAddon) Class.forName(i.className).newInstance();
-				add(a);
-			} catch (Exception ignore) {
-			}
+			if (!loadAddon(i)) install(i);
 		}
 
 		store.addBroadcastListener(this);
+	}
+
+	private static void enableAddonsByDefault(PreferenceStore store) {
+		if (store.getBooleanPref(ADDONS_ENABLED_BY_DEFAULT_V2)) return;
+
+		try (PreferenceStore.Edit edit = store.editPreferenceStore(false)) {
+			for (AddonInfo i : BuildConfig.ADDONS) {
+				if (!BuildConfig.AUTO && i.isAuto) continue;
+				if (!i.enableByDefault) continue;
+				if (store.hasPref(i.enabledPref, false)) continue;
+				edit.setBooleanPref(i.enabledPref, true);
+			}
+
+			edit.setBooleanPref(ADDONS_ENABLED_BY_DEFAULT, true);
+			edit.setBooleanPref(ADDONS_ENABLED_BY_DEFAULT_V2, true);
+		}
 	}
 
 	public static AddonManager get() {

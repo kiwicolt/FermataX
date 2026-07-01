@@ -1,0 +1,19 @@
+import org.gradle.process.ExecOperations
+
+gradle.projectsLoaded {
+	rootProject {
+		tasks.register('codexAdb') {
+			doLast {
+				def sdk = System.getenv('ANDROID_HOME') ?: System.getenv('ANDROID_SDK_ROOT')
+				if (!sdk) sdk = new File(System.getProperty('user.home'), 'AppData/Local/Android/Sdk').absolutePath
+				def adb = new File(sdk, 'platform-tools/adb.exe')
+				def rawArgs = (project.findProperty('codexAdbArgs') ?: 'devices').toString()
+				def adbArgs = rawArgs.split(',').findAll { it.length() > 0 }
+				project.services.get(ExecOperations).exec {
+					executable adb.absolutePath
+					args adbArgs
+				}
+			}
+		}
+	}
+}

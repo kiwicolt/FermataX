@@ -77,16 +77,24 @@ public class ExoPlayerEngine extends MediaEngineBase implements Player.Listener 
 	private static final DataSource.Factory httpDsFactory;
 
 	static {
-		CronetEngine cre = CronetUtil.buildCronetEngine(FermataApplication.get(),
-				"Fermata/" + BuildConfig.VERSION_NAME, true);
-		if (cre != null) {
-			httpDsFactory = new CronetDataSource.Factory(cre, Executors.newSingleThreadExecutor());
-		} else {
-			CookieManager cookieManager = new CookieManager();
-			cookieManager.setCookiePolicy(CookiePolicy.ACCEPT_ORIGINAL_SERVER);
-			CookieHandler.setDefault(cookieManager);
-			httpDsFactory = new DefaultHttpDataSource.Factory();
+		httpDsFactory = createHttpDataSourceFactory();
+	}
+
+	private static DataSource.Factory createHttpDataSourceFactory() {
+		try {
+			CronetEngine cre = CronetUtil.buildCronetEngine(FermataApplication.get(),
+					"Fermata/" + BuildConfig.VERSION_NAME, true);
+			if (cre != null) {
+				return new CronetDataSource.Factory(cre, Executors.newSingleThreadExecutor());
+			}
+		} catch (Throwable err) {
+			Log.w(err, "Cronet is unavailable. Falling back to the default HTTP data source.");
 		}
+
+		CookieManager cookieManager = new CookieManager();
+		cookieManager.setCookiePolicy(CookiePolicy.ACCEPT_ORIGINAL_SERVER);
+		CookieHandler.setDefault(cookieManager);
+		return new DefaultHttpDataSource.Factory();
 	}
 
 	private final Accessor accessor = new Accessor(this);
