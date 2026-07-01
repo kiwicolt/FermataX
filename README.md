@@ -21,7 +21,7 @@
 
 ## About
 
-If you love [Fermata](https://github.com/AndreyPavlenko/Fermata), welcome to **FermataX**: a free, open source audio, video, and TV player with a simple and intuitive interface.
+If you love [Fermata](https://github.com/AndreyPavlenko/Fermata), welcome to **FermataX**: a free, open source audio, video, TV player,... with a simple and intuitive interface.
 
 FermataX is a fork of Fermata, customized as a media hub for Android Auto. It brings local media, IPTV/Xtream, Internet Radio, YouTube/Web media, Favorites, Recent, and playlists together in one car-friendly experience.
 
@@ -33,7 +33,7 @@ FermataX is a fork of Fermata, customized as a media hub for Android Auto. It br
 - **IPTV source support** for M3U playlists, XMLTV EPG, and Catchup.
 - **Watch from beginning** and Catchup support for compatible Xtream sources.
 - **Internet Radio** with popular stations, top voted stations, countries, and tags.
-- **YouTube and Web media** access inside the same media hub.
+- **More media services** access inside the same media hub.
 - **Favorites, Recent, playlists, and local folders** available from the main screen.
 - **Car-friendly UI** designed for fast navigation and repeated daily use.
 
@@ -41,11 +41,11 @@ FermataX is a fork of Fermata, customized as a media hub for Android Auto. It br
 
 | Dashboard | IPTV Sources |
 | --- | --- |
-| <img src="product_screenshots/01_dashboard.png" alt="FermataX dashboard"> | <img src="product_screenshots/02_tv_add_source.png" alt="FermataX IPTV source picker"> |
+| <img src="product_screenshots/Dashboard.png" alt="FermataX dashboard"> | <img src="product_screenshots/iptv.png" alt="FermataX IPTV source picker"> |
 
 | Xtream Codes | Internet Radio |
 | --- | --- |
-| <img src="product_screenshots/03_xtream_form.png" alt="FermataX Xtream source form"> | <img src="product_screenshots/06_radio.png" alt="FermataX radio screen"> |
+| <img src="product_screenshots/xtream.png" alt="FermataX Xtream source form"> | <img src="product_screenshots/radio.png" alt="FermataX radio screen"> |
 
 ## Disclaimer
 
@@ -53,36 +53,9 @@ FermataX is a media player only. It does not provide, host, sell, or distribute 
 
 Users are responsible for the sources they add.
 
-## Build
-
-Install the latest Android SDK or Android Studio, then set `ANDROID_SDK_ROOT`:
-
-```bash
-export ANDROID_SDK_ROOT=<path-to-android-sdk>
-```
-
-Clone the repository with submodules:
-
-```bash
-git clone --recurse-submodules https://github.com/chuoinho/FermataX.git
-cd FermataX
-```
-
-Build an APK:
-
-```bash
-./gradlew assembleAutoRelease
-```
-
-Build an AAB:
-
-```bash
-./gradlew bundleAutoRelease
-```
-
 ## Donate
 
-If you like this application, you can buy me a coffee:
+If you enjoy this app or my app installation service, feel free to buy me a coffee:
 
 <p>
   <a href="https://ko-fi.com/fermatax">
