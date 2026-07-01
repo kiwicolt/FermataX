@@ -7,6 +7,7 @@ import me.aap.fermata.media.lib.DefaultMediaLib;
 import me.aap.fermata.media.lib.MediaLib.Item;
 import me.aap.fermata.media.service.FermataServiceUiBinder;
 import me.aap.fermata.ui.fragment.MediaLibFragment;
+import me.aap.utils.async.FutureSupplier;
 
 public class RadioFragment extends MediaLibFragment {
 
@@ -28,6 +29,12 @@ public class RadioFragment extends MediaLibFragment {
 	@Override
 	public void navBarItemReselected(int itemId) {
 		getAdapter().setParent(getRootItem());
+	}
+
+	@Override
+	public FutureSupplier<?> refresh() {
+		getRootItem().getApi().clearCache();
+		return super.refresh();
 	}
 
 	public RadioRootItem getRootItem() {

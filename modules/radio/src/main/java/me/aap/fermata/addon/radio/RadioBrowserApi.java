@@ -17,6 +17,8 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
 
@@ -33,6 +35,8 @@ class RadioBrowserApi {
 	};
 	private static final int CONNECT_TIMEOUT = 15000;
 	private static final int READ_TIMEOUT = 30000;
+	private static final long CACHE_TTL = 20 * 60 * 1000L;
+	private final Map<String, CacheEntry<?>> cache = new ConcurrentHashMap<>();
 
 	FutureSupplier<List<RadioBrowserStation>> getPopularStations(int limit) {
 		return getStations("stations/topclick/" + limit + "?hidebroken=true");
@@ -53,23 +57,26 @@ class RadioBrowserApi {
 	}
 
 	FutureSupplier<List<DirectoryEntry>> getCountries(int limit) {
-		return App.get().execute(() -> request("countries?hidebroken=true&order=stationcount&reverse=true",
-				reader -> readDirectories(reader, limit, true)));
+		return cached("countries:" + limit, () ->
+				App.get().execute(() -> request("countries?hidebroken=true&order=stationcount&reverse=true",
+						reader -> readDirectories(reader, limit, true))));
 	}
 
 	FutureSupplier<List<DirectoryEntry>> getTags(int limit) {
-		return App.get().execute(() -> request("tags?hidebroken=true&order=stationcount&reverse=true",
-				reader -> readDirectories(reader, limit, false)));
+		return cached("tags:" + limit, () ->
+				App.get().execute(() -> request("tags?hidebroken=true&order=stationcount&reverse=true",
+						reader -> readDirectories(reader, limit, false))));
 	}
 
 	FutureSupplier<RadioBrowserStation> getStation(String uuid) {
-		return App.get().execute(() -> request("stations/byuuid/" + enc(uuid), reader -> {
+		return cached("station:" + uuid, () -> App.get().execute(() ->
+				request("stations/byuuid/" + enc(uuid), reader -> {
 			reader.beginArray();
 			RadioBrowserStation station = reader.hasNext() ? readStation(reader) : null;
 			while (reader.hasNext()) reader.skipValue();
 			reader.endArray();
 			return station;
-		}));
+		})));
 	}
 
 	FutureSupplier<Void> click(String uuid) {
@@ -83,7 +90,29 @@ class RadioBrowserApi {
 	}
 
 	private FutureSupplier<List<RadioBrowserStation>> getStations(String path) {
-		return App.get().execute(() -> request(path, this::readStations));
+		return cached("stations:" + path, () -> App.get().execute(() -> request(path, this::readStations)));
+	}
+
+	void clearCache() {
+		cache.clear();
+	}
+
+	@SuppressWarnings("unchecked")
+	private <T> FutureSupplier<T> cached(String key, Loader<T> loader) {
+		long now = System.currentTimeMillis();
+		CacheEntry<?> current = cache.get(key);
+		if ((current != null) && (current.expiresAt > now)) return (FutureSupplier<T>) current.future;
+
+		synchronized (cache) {
+			current = cache.get(key);
+			if ((current != null) && (current.expiresAt > now)) return (FutureSupplier<T>) current.future;
+
+			FutureSupplier<T> future = loader.load();
+			CacheEntry<T> entry = new CacheEntry<>(future, now + CACHE_TTL);
+			cache.put(key, entry);
+			future.onFailure(err -> cache.remove(key, entry));
+			return future;
+		}
 	}
 
 	private <T> T request(String path, Parser<T> parser) throws IOException {
@@ -276,6 +305,20 @@ class RadioBrowserApi {
 
 	private interface Parser<T> {
 		T parse(JsonReader reader) throws IOException;
+	}
+
+	private interface Loader<T> {
+		FutureSupplier<T> load();
+	}
+
+	private static final class CacheEntry<T> {
+		final FutureSupplier<T> future;
+		final long expiresAt;
+
+		CacheEntry(FutureSupplier<T> future, long expiresAt) {
+			this.future = future;
+			this.expiresAt = expiresAt;
+		}
 	}
 
 	private static final class HttpStatusException extends IOException {
