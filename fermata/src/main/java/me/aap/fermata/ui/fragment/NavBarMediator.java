@@ -85,12 +85,11 @@ public class NavBarMediator extends PrefNavBarMediator
 		String name1 = DashboardItems.idToName(id1);
 		String name2 = DashboardItems.idToName(id2);
 
-		if ((name1 != null) && (name2 != null) && DashboardItems.swap(getPreferenceStore(nb), name1, name2)) {
-			return true;
-		} else {
-			Log.e("Unable to swap ", name1, " and ", name2);
-			return false;
-		}
+		if ((name1 != null) && (name2 != null) &&
+				DashboardItems.swap(getPreferenceStore(nb), name1, name2)) return true;
+
+		Log.e("Unable to swap ", name1, " and ", name2);
+		return false;
 	}
 
 	@Override

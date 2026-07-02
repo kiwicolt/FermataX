@@ -80,7 +80,7 @@ public class DashboardFragment extends MainActivityFragment
 		Context localizedCtx = activity.getLocalizedContext(ctx);
 		prefs = activity.getPrefs();
 		RecyclerView list = view.findViewById(R.id.dashboard_list);
-		DashboardAdapter dashboardAdapter = new DashboardAdapter(localizedCtx, prefs);
+		DashboardAdapter dashboardAdapter = new DashboardAdapter(activity, localizedCtx, prefs);
 		adapter = dashboardAdapter;
 		int spanCount = getSpanCount(ctx);
 		GridLayoutManager layoutManager = new GridLayoutManager(ctx, spanCount);
@@ -166,19 +166,22 @@ public class DashboardFragment extends MainActivityFragment
 
 	private static final class DashboardAdapter extends MovableRecyclerViewAdapter<ItemHolder> {
 		private final Context ctx;
+		private final MainActivityDelegate activity;
 		private final PreferenceStore store;
 		private final List<DashboardCard> cards = new ArrayList<>();
 		private long ignoreClicksUntil;
 		private boolean closed;
 
-		private DashboardAdapter(Context ctx, PreferenceStore store) {
+		private DashboardAdapter(MainActivityDelegate activity, Context ctx, PreferenceStore store) {
+			this.activity = activity;
 			this.ctx = ctx;
 			this.store = store;
 			reload();
 		}
 
 		private void reload() {
-			DashboardCard continueCard = getContinueCard();
+			int pos = findContinueCardPosition();
+			DashboardCard continueCard = (pos == -1) ? null : cards.get(pos);
 			cards.clear();
 			if (continueCard != null) cards.add(continueCard);
 			for (DashboardItems.Item item : DashboardItems.getDashboardItems(ctx, store)) {
@@ -209,7 +212,7 @@ public class DashboardFragment extends MainActivityFragment
 			holder.subtitle.setVisibility(TextUtils.isEmpty(card.subtitle) ? View.GONE : View.VISIBLE);
 			holder.itemView.setOnClickListener(v -> {
 				if (SystemClock.uptimeMillis() < ignoreClicksUntil) return;
-				MainActivityDelegate a = MainActivityDelegate.get(v.getContext());
+				MainActivityDelegate a = activity;
 
 				if (card.playable != null) {
 					PlayableItem current = a.getCurrentPlayable();
@@ -239,7 +242,7 @@ public class DashboardFragment extends MainActivityFragment
 		private void refreshContinueCard() {
 			if (closed) return;
 
-			MainActivityDelegate a = MainActivityDelegate.get(ctx);
+			MainActivityDelegate a = activity;
 			PlayableItem current = a.getCurrentPlayable();
 			if (current != null) {
 				setContinueCard(current, true);
@@ -250,14 +253,7 @@ public class DashboardFragment extends MainActivityFragment
 					.onFailure(err -> setContinueCard(null, false));
 		}
 
-		private DashboardCard getContinueCard() {
-			for (DashboardCard card : cards) {
-				if (card.playable != null) return card;
-			}
-			return null;
-		}
-
-		private int getContinueCardPosition() {
+		private int findContinueCardPosition() {
 			for (int i = 0; i < cards.size(); i++) {
 				if (cards.get(i).playable != null) return i;
 			}
@@ -266,7 +262,7 @@ public class DashboardFragment extends MainActivityFragment
 
 		private void setContinueCard(PlayableItem item, boolean current) {
 			if (closed) return;
-			int pos = getContinueCardPosition();
+			int pos = findContinueCardPosition();
 
 			if (item == null) {
 				if (pos != -1) {

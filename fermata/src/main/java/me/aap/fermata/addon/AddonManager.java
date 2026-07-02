@@ -13,8 +13,10 @@ import androidx.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import me.aap.fermata.BuildConfig;
 import me.aap.fermata.FermataApplication;
@@ -48,6 +50,7 @@ public class AddonManager extends BasicEventBroadcaster<AddonManager.Listener>
 	private final Map<Object, FermataAddon> map = new HashMap<>();
 	private final List<FermataAddon> addons = new ArrayList<>(BuildConfig.ADDONS.length);
 	private final Map<String, FutureSupplier<?>> installing = new HashMap<>();
+	private final Set<String> failedAddons = new HashSet<>();
 
 	public AddonManager(PreferenceStore store) {
 		enableAddonsByDefault(store);
@@ -55,7 +58,7 @@ public class AddonManager extends BasicEventBroadcaster<AddonManager.Listener>
 		for (AddonInfo i : BuildConfig.ADDONS) {
 			if (!BuildConfig.AUTO && i.isAuto) continue;
 			if (!store.getBooleanPref(i.enabledPref)) continue;
-			if (!loadAddon(i)) install(i);
+			if (!loadAddon(i) && !failedAddons.contains(i.className)) install(i);
 		}
 
 		store.addBroadcastListener(this);
@@ -169,13 +172,14 @@ public class AddonManager extends BasicEventBroadcaster<AddonManager.Listener>
 	}
 
 	private synchronized void install(AddonInfo i) {
-		if (loadAddon(i) || installing.containsKey(i.className)) return;
+		if (failedAddons.contains(i.className) || loadAddon(i) || installing.containsKey(i.className)) return;
 		for (String dep : i.depends) install(FermataAddon.findAddonInfo(dep));
 
 		var task = ActivityBase.create(App.get(), CHANNEL_ID, i.moduleName, i.icon, i.moduleName, null,
 				MainActivity.class).then(a -> createInstaller(a, i).install(i.moduleName)).onSuccess(v -> {
 			Log.i("Module installed: ", i.moduleName);
 			if (loadAddon(i)) return;
+			if (failedAddons.contains(i.className)) return;
 			Log.i("Failed to load addon, retrying: ", i.className);
 			var p = new Promise<Void>();
 			installing.put(i.className, p);
@@ -204,7 +208,10 @@ public class AddonManager extends BasicEventBroadcaster<AddonManager.Listener>
 			prefs.fireBroadcastEvent(l -> l.onPreferenceChanged(prefs, singletonList(i.enabledPref)));
 			Log.i("Addon loaded: ", i.className);
 			return true;
-		} catch (Exception ignore) {
+		} catch (Exception | LinkageError ex) {
+			if (ex instanceof ClassNotFoundException) return false;
+			if (ex instanceof LinkageError) failedAddons.add(i.className);
+			Log.e(ex, "Failed to load addon: ", i.className);
 			return false;
 		}
 	}
@@ -212,6 +219,10 @@ public class AddonManager extends BasicEventBroadcaster<AddonManager.Listener>
 	private synchronized void scheduleLoadAddon(AddonInfo i, FutureSupplier<?> task, int counter) {
 		App.get().getHandler().postDelayed(() -> {
 			if (installing.get(i.className) != task) return;
+			if (failedAddons.contains(i.className)) {
+				task.cancel();
+				return;
+			}
 			if (loadAddon(i)) {
 				task.cancel();
 			} else if (counter == 180) {
@@ -224,6 +235,7 @@ public class AddonManager extends BasicEventBroadcaster<AddonManager.Listener>
 	}
 
 	private synchronized void uninstall(AddonInfo i) {
+		failedAddons.remove(i.className);
 		var task = installing.get(i.className);
 		if (task != null) task.cancel();
 		var removed = remove(i);

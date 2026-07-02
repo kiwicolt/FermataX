@@ -27,6 +27,7 @@ import java.util.zip.InflaterInputStream;
 import me.aap.utils.app.App;
 import me.aap.utils.async.FutureRef;
 import me.aap.utils.async.FutureSupplier;
+import me.aap.utils.function.CheckedConsumer;
 
 /**
  * @author Andrey Pavlenko
@@ -122,33 +123,15 @@ public class XtreamApi {
 	}
 
 	private FutureSupplier<List<XtreamCategory>> loadLiveCategories() {
-		return request("get_live_categories", null, null, in -> {
-			List<XtreamCategory> categories = new ArrayList<>();
-			parser.parseLiveCategories(in, c -> {
-				categories.add(c);
-			});
-			return categories;
-		});
+		return requestList("get_live_categories", null, null, parser::parseLiveCategories);
 	}
 
 	private FutureSupplier<List<XtreamCategory>> loadVodCategories() {
-		return request("get_vod_categories", null, null, in -> {
-			List<XtreamCategory> categories = new ArrayList<>();
-			parser.parseVodCategories(in, c -> {
-				categories.add(c);
-			});
-			return categories;
-		});
+		return requestList("get_vod_categories", null, null, parser::parseVodCategories);
 	}
 
 	private FutureSupplier<List<XtreamCategory>> loadSeriesCategories() {
-		return request("get_series_categories", null, null, in -> {
-			List<XtreamCategory> categories = new ArrayList<>();
-			parser.parseSeriesCategories(in, c -> {
-				categories.add(c);
-			});
-			return categories;
-		});
+		return requestList("get_series_categories", null, null, parser::parseSeriesCategories);
 	}
 
 	private FutureSupplier<XtreamHealth> checkCategories(XtreamHealth health) {
@@ -170,13 +153,7 @@ public class XtreamApi {
 	}
 
 	private FutureSupplier<List<XtreamChannel>> loadLiveStreams(String categoryId) {
-		return request("get_live_streams", "category_id", categoryId, in -> {
-			List<XtreamChannel> channels = new ArrayList<>();
-			parser.parseLiveStreams(in, c -> {
-				channels.add(c);
-			});
-			return channels;
-		});
+		return requestList("get_live_streams", "category_id", categoryId, parser::parseLiveStreams);
 	}
 
 	private FutureSupplier<XtreamChannel> getFirstLiveStream() {
@@ -184,23 +161,11 @@ public class XtreamApi {
 	}
 
 	private FutureSupplier<List<XtreamMovie>> loadVodStreams(String categoryId) {
-		return request("get_vod_streams", "category_id", categoryId, in -> {
-			List<XtreamMovie> movies = new ArrayList<>();
-			parser.parseVodStreams(in, m -> {
-				movies.add(m);
-			});
-			return movies;
-		});
+		return requestList("get_vod_streams", "category_id", categoryId, parser::parseVodStreams);
 	}
 
 	private FutureSupplier<List<XtreamSeries>> loadSeries(String categoryId) {
-		return request("get_series", "category_id", categoryId, in -> {
-			List<XtreamSeries> series = new ArrayList<>();
-			parser.parseSeries(in, s -> {
-				series.add(s);
-			});
-			return series;
-		});
+		return requestList("get_series", "category_id", categoryId, parser::parseSeries);
 	}
 
 	private FutureSupplier<List<XtreamSeason>> loadSeriesSeasons(int seriesId) {
@@ -230,6 +195,19 @@ public class XtreamApi {
 		return request(action, params, parser);
 	}
 
+	private <T> FutureSupplier<List<T>> requestList(@Nullable String action,
+																									@Nullable String extraKey,
+																									@Nullable String extraValue,
+																									ListResponseParser<T> parser) {
+		return request(action, extraKey, extraValue, in -> collect(in, parser));
+	}
+
+	private <T> List<T> collect(InputStream in, ListResponseParser<T> parser) throws IOException {
+		List<T> list = new ArrayList<>();
+		parser.parse(in, list::add);
+		return list;
+	}
+
 	private <T> FutureSupplier<T> request(@Nullable String action,
 																				@Nullable Map<String, String> extraParams,
 																				ResponseParser<T> parser) {
@@ -247,18 +225,7 @@ public class XtreamApi {
 			HttpURLConnection conn = null;
 
 			try {
-				conn = (HttpURLConnection) requestUrl.openConnection();
-				conn.setRequestMethod("GET");
-				conn.setInstanceFollowRedirects(true);
-				conn.setRequestProperty("Accept-Encoding", "gzip, deflate");
-				if (ua != null) conn.setRequestProperty("User-Agent", ua);
-
-				int timeout = account.getResponseTimeout();
-				if (timeout > 0) {
-					int millis = (int) Math.min(Integer.MAX_VALUE, timeout * 1000L);
-					conn.setConnectTimeout(millis);
-					conn.setReadTimeout(millis);
-				}
+				conn = openConnection(requestUrl, "gzip, deflate", ua);
 
 				int status = conn.getResponseCode();
 				if (status != HttpURLConnection.HTTP_OK) {
@@ -294,19 +261,8 @@ public class XtreamApi {
 			HttpURLConnection conn = null;
 
 			try {
-				conn = (HttpURLConnection) requestUrl.openConnection();
-				conn.setRequestMethod("GET");
-				conn.setInstanceFollowRedirects(true);
-				conn.setRequestProperty("Accept-Encoding", "identity");
+				conn = openConnection(requestUrl, "identity", ua);
 				conn.setRequestProperty("Range", "bytes=0-0");
-				if (ua != null) conn.setRequestProperty("User-Agent", ua);
-
-				int timeout = account.getResponseTimeout();
-				if (timeout > 0) {
-					int millis = (int) Math.min(Integer.MAX_VALUE, timeout * 1000L);
-					conn.setConnectTimeout(millis);
-					conn.setReadTimeout(millis);
-				}
 
 				int status = conn.getResponseCode();
 				health.setStreamStatusCode(status);
@@ -324,6 +280,24 @@ public class XtreamApi {
 				if (conn != null) conn.disconnect();
 			}
 		});
+	}
+
+	private HttpURLConnection openConnection(URL requestUrl, String acceptEncoding,
+																					 @Nullable String userAgent) throws IOException {
+		HttpURLConnection conn = (HttpURLConnection) requestUrl.openConnection();
+		conn.setRequestMethod("GET");
+		conn.setInstanceFollowRedirects(true);
+		conn.setRequestProperty("Accept-Encoding", acceptEncoding);
+		if (userAgent != null) conn.setRequestProperty("User-Agent", userAgent);
+
+		int timeout = account.getResponseTimeout();
+		if (timeout > 0) {
+			int millis = (int) Math.min(Integer.MAX_VALUE, timeout * 1000L);
+			conn.setConnectTimeout(millis);
+			conn.setReadTimeout(millis);
+		}
+
+		return conn;
 	}
 
 	private void close(@Nullable InputStream in) throws IOException {
@@ -399,6 +373,10 @@ public class XtreamApi {
 
 	private interface ResponseParser<T> {
 		T parse(InputStream in) throws IOException;
+	}
+
+	private interface ListResponseParser<T> {
+		void parse(InputStream in, CheckedConsumer<T, IOException> consumer) throws IOException;
 	}
 
 	private static final class HttpStatusException extends IOException {

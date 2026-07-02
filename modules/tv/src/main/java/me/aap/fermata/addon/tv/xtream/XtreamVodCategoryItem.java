@@ -1,43 +1,27 @@
 package me.aap.fermata.addon.tv.xtream;
 
-import static me.aap.utils.async.Completed.completed;
 import static me.aap.utils.async.Completed.completedNull;
 
-import androidx.annotation.NonNull;
-
-import java.util.ArrayList;
 import java.util.List;
 
 import me.aap.fermata.addon.tv.R;
-import me.aap.fermata.addon.tv.TvItem;
 import me.aap.fermata.addon.tv.TvRootItem;
-import me.aap.fermata.media.lib.BrowsableItemBase;
-import me.aap.fermata.media.lib.DefaultMediaLib;
-import me.aap.fermata.media.lib.MediaLib;
 import me.aap.fermata.media.lib.MediaLib.Item;
 import me.aap.utils.async.FutureSupplier;
 
 /**
  * @author Andrey Pavlenko
  */
-public class XtreamVodCategoryItem extends BrowsableItemBase implements TvItem {
+public class XtreamVodCategoryItem extends XtreamCategoryItemBase {
 	public static final String SCHEME = "tvxvc";
-	private final XtreamCategory category;
 
 	private XtreamVodCategoryItem(String id, XtreamSectionItem parent, XtreamCategory category) {
-		super(id, parent, null);
-		this.category = category;
+		super(id, parent, category);
 	}
 
 	public static XtreamVodCategoryItem create(XtreamSectionItem parent, XtreamCategory category) {
 		String id = toId(parent.getParent().getSourceId(), category.getId(), category.getName());
-		DefaultMediaLib lib = (DefaultMediaLib) parent.getLib();
-
-		synchronized (lib.cacheLock()) {
-			MediaLib.Item i = lib.getFromCache(id);
-			return (i != null) ? (XtreamVodCategoryItem) i :
-					new XtreamVodCategoryItem(id, parent, category);
-		}
+		return cached(parent, id, () -> new XtreamVodCategoryItem(id, parent, category));
 	}
 
 	public static FutureSupplier<XtreamVodCategoryItem> create(TvRootItem root, String id) {
@@ -58,45 +42,13 @@ public class XtreamVodCategoryItem extends BrowsableItemBase implements TvItem {
 	}
 
 	public FutureSupplier<XtreamMovieItem> getMovie(int streamId) {
-		return getUnsortedChildren().map(children -> {
-			for (Item child : children) {
-				if ((child instanceof XtreamMovieItem) &&
-						(((XtreamMovieItem) child).getStreamId() == streamId)) {
-					return (XtreamMovieItem) child;
-				}
-			}
-			return null;
-		});
-	}
-
-	@NonNull
-	@Override
-	public XtreamSectionItem getParent() {
-		return (XtreamSectionItem) super.getParent();
-	}
-
-	public XtreamCategory getCategory() {
-		return category;
-	}
-
-	@NonNull
-	@Override
-	public String getName() {
-		return category.getName();
+		return findChild(XtreamMovieItem.class, item -> item.getStreamId() == streamId);
 	}
 
 	@Override
 	protected FutureSupplier<List<Item>> listChildren() {
-		return getParent().getParent().getApi().getVodStreams(category.getId()).map(movies -> {
-			List<Item> children = new ArrayList<>(movies.size());
-			for (XtreamMovie m : movies) children.add(XtreamMovieItem.create(this, m));
-			return children;
-		});
-	}
-
-	@Override
-	protected FutureSupplier<String> buildSubtitle() {
-		return completed("");
+		return listChildren(getParent().getParent().getApi().getVodStreams(getXtreamCategory().getId()),
+				movie -> XtreamMovieItem.create(this, movie));
 	}
 
 	@Override
@@ -110,19 +62,6 @@ public class XtreamVodCategoryItem extends BrowsableItemBase implements TvItem {
 	}
 
 	static ParsedId parseId(String id) {
-		XtreamItemId.Category parsed = XtreamItemId.category(id);
-		return new ParsedId(parsed.sourceId, parsed.categoryId, parsed.categoryName);
-	}
-
-	static final class ParsedId {
-		final int sourceId;
-		final String categoryId;
-		final String name;
-
-		ParsedId(int sourceId, String categoryId, String name) {
-			this.sourceId = sourceId;
-			this.categoryId = categoryId;
-			this.name = name;
-		}
+		return parseCategoryId(id);
 	}
 }

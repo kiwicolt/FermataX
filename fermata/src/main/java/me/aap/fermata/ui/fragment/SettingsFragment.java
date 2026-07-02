@@ -28,6 +28,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
@@ -801,21 +802,24 @@ public class SettingsFragment extends MainActivityFragment
 				});
 			}
 
-			itemSet.addButton(o -> {
-				o.title = R.string.move_up;
-				o.icon = R.drawable.pg_up;
-				o.onClick = () -> {
-					if (DashboardItems.move(dashboardStore, item.name, -1)) refreshPrefs(sub);
-				};
-			});
-			itemSet.addButton(o -> {
-				o.title = R.string.move_down;
-				o.icon = R.drawable.pg_down;
-				o.onClick = () -> {
-					if (DashboardItems.move(dashboardStore, item.name, 1)) refreshPrefs(sub);
-				};
-			});
+			addDashboardMoveButton(itemSet, sub, dashboardStore, item.name, R.string.move_up,
+					R.drawable.pg_up, -1);
+			addDashboardMoveButton(itemSet, sub, dashboardStore, item.name, R.string.move_down,
+					R.drawable.pg_down, 1);
 		}
+	}
+
+	private void addDashboardMoveButton(PreferenceSet itemSet, PreferenceSet dashboardSet,
+																		 PreferenceStore dashboardStore, String itemName,
+																		 @StringRes int title, @DrawableRes int icon,
+																		 int direction) {
+		itemSet.addButton(o -> {
+			o.title = title;
+			o.icon = icon;
+			o.onClick = () -> {
+				if (DashboardItems.move(dashboardStore, itemName, direction)) refreshPrefs(dashboardSet);
+			};
+		});
 	}
 
 	private void refreshPrefs(PreferenceSet set) {
