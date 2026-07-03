@@ -1,4 +1,4 @@
-package me.aap.fermata.auto;
+package me.app.fermatax.auto;
 
 import static android.content.Context.POWER_SERVICE;
 import static android.content.Context.WINDOW_SERVICE;

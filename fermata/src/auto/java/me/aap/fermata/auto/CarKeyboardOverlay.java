@@ -1,4 +1,4 @@
-package me.aap.fermata.auto;
+package me.app.fermatax.auto;
 
 import static android.view.Gravity.BOTTOM;
 import static android.view.Gravity.CENTER;

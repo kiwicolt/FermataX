@@ -1,11 +1,11 @@
-package me.aap.fermata.auto;
+package me.app.fermatax.auto;
 
 import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
 import static android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP;
 import static android.os.SystemClock.uptimeMillis;
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
-import static me.aap.fermata.auto.MirrorDisplay.disableAccelRotation;
+import static me.app.fermatax.auto.MirrorDisplay.disableAccelRotation;
 import static me.aap.utils.ui.UiUtils.toPx;
 
 import android.annotation.SuppressLint;

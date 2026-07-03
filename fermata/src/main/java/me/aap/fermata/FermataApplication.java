@@ -156,7 +156,7 @@ public class FermataApplication extends NetSplitCompatApp {
 				Log.i("Starting XposedEventDispatcherService");
 				var i = new Intent();
 				i.setComponent(
-						new ComponentName(this, "me.aap.fermata.auto" + ".XposedEventDispatcherService"));
+						new ComponentName(this, "me.app.fermatax.auto" + ".XposedEventDispatcherService"));
 				bindService(i, eventService, Context.BIND_AUTO_CREATE);
 			} catch (Exception err) {
 				eventService = null;
