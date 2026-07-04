@@ -57,7 +57,7 @@ public class NavBarMediator extends PrefNavBarMediator
 
 	@Override
 	protected List<NavBarItem> getItems(NavBarView nb) {
-		int max = nb.suggestItemCount() - 1;
+		int max = nb.isBottom() ? nb.suggestItemCount() - 1 : Integer.MAX_VALUE;
 		List<DashboardItems.NavItem> navItems = DashboardItems.getNavItems(getPreferenceStore(nb));
 		List<NavBarItem> items = new ArrayList<>(navItems.size());
 		Context ctx = MainActivityDelegate.get(nb.getContext()).getLocalizedContext(nb.getContext());
@@ -156,7 +156,8 @@ public class NavBarMediator extends PrefNavBarMediator
 	@Override
 	public void itemReselected(View item, int id, ActivityDelegate a) {
 		BodyLayout b = ((MainActivityDelegate) a).getBody();
-		if (b.isVideoMode()) b.setMode(BodyLayout.Mode.BOTH);
+		if (b.isVideoMode()) b.setMode(((MainActivityDelegate) a).isCarActivity() ?
+				BodyLayout.Mode.FRAME : BodyLayout.Mode.BOTH);
 		else super.itemReselected(item, id, a);
 	}
 

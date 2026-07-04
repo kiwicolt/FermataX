@@ -124,6 +124,7 @@ import me.aap.fermata.ui.fragment.SettingsFragment;
 import me.aap.fermata.ui.fragment.SubtitlesFragment;
 import me.aap.fermata.ui.view.BodyLayout;
 import me.aap.fermata.ui.view.ControlPanelView;
+import me.aap.fermata.ui.view.MediaItemListView;
 import me.aap.fermata.ui.view.VideoView;
 import me.aap.utils.app.App;
 import me.aap.utils.async.FutureSupplier;
@@ -361,12 +362,15 @@ public class MainActivityDelegate extends ActivityDelegate
 
 	public void showDashboard() {
 		hideActiveMenu();
+		BodyLayout body = getBody();
+		if (!body.isFrameMode()) body.setMode(BodyLayout.Mode.FRAME);
 		View active = getNavBar().findViewById(getActiveNavItemId());
 		View dashboard = getNavBar().findViewById(R.id.dashboard_fragment);
 		if ((active != null) && (active != dashboard)) active.setSelected(false);
 		if (dashboard != null) dashboard.setSelected(true);
-		showFragment(R.id.dashboard_fragment);
+		ActivityFragment f = showFragment(R.id.dashboard_fragment);
 		setActiveNavItemId(R.id.dashboard_fragment);
+		if (f instanceof DashboardFragment d) d.showHome();
 	}
 
 	private void checkUpdates() {
@@ -741,7 +745,7 @@ public class MainActivityDelegate extends ActivityDelegate
 	@Override
 	public ActivityFragment showFragment(int id, Object input) {
 		BodyLayout b = getBody();
-		if (b.isVideoMode()) b.setMode(BodyLayout.Mode.BOTH);
+		if (b.isVideoMode()) b.setMode(isCarActivity() ? BodyLayout.Mode.FRAME : BodyLayout.Mode.BOTH);
 		return super.showFragment(id, input);
 	}
 
@@ -800,6 +804,44 @@ public class MainActivityDelegate extends ActivityDelegate
 				getLib().getLastPlayedItem().main().map(this::goToItem) : completed(goToItem(pi));
 	}
 
+	public void onPlayerBackPressed() {
+		ActivityFragment f = getActiveFragment();
+		BodyLayout b = getBody();
+
+		if (b.isBothMode()) {
+			if ((f != null) && f.onBackPressed()) {
+				showAutoTopBackButton();
+				return;
+			}
+
+			showDashboard();
+			return;
+		}
+
+		if ((f != null) && !(f instanceof MediaLibFragment) && f.onBackPressed()) return;
+
+		if (b.isVideoMode()) {
+			b.setMode(BodyLayout.Mode.BOTH);
+			if (AUTO) setBarsHidden(false);
+			if (isCarActivity()) post(() -> {
+				MediaItemListView.focusActive(getContext(), null);
+				showAutoTopBackButton();
+			});
+			return;
+		}
+
+		PlayableItem pi = getMediaServiceBinder().getCurrentItem();
+		if ((pi != null) && !pi.isVideo() && goToItem(pi)) return;
+
+		onBackPressed();
+	}
+
+	private void showAutoTopBackButton() {
+		if (!AUTO) return;
+		View back = getToolBar().findViewById(me.aap.utils.R.id.tool_bar_back_button);
+		if (back != null) back.setVisibility(VISIBLE);
+	}
+
 	public FutureSupplier<Item> goToItem(String id) {
 		return getLib().getItem(id).main(getHandler()).map(i -> goToItem(i) ? i : null);
 	}
@@ -844,6 +886,42 @@ public class MainActivityDelegate extends ActivityDelegate
 	@Override
 	protected boolean exitOnBackPressed() {
 		return !isCarActivityNotMirror();
+	}
+
+	@Override
+	public void onBackPressed() {
+		if (!AUTO) {
+			super.onBackPressed();
+			return;
+		}
+
+		OverlayMenu menu = getActiveMenu();
+		if (menu != null) {
+			if (menu.back()) return;
+			else if (hideActiveMenu()) return;
+		}
+
+		ToolBarView tb = getToolBar();
+		if ((tb != null) && tb.onBackPressed()) return;
+
+		ActivityFragment f = getActiveFragment();
+		if (f != null) {
+			if (f.onBackPressed()) return;
+
+			int navId = getActiveNavItemId();
+			if ((f.getFragmentId() != navId) && (navId != ID_NULL)) {
+				showFragment(navId);
+				return;
+			}
+
+			if (!(f instanceof DashboardFragment) || (getActiveNavItemId() != R.id.dashboard_fragment) ||
+					!f.isRootPage()) {
+				showDashboard();
+				return;
+			}
+		}
+
+		finish();
 	}
 
 	@Override
@@ -1039,6 +1117,7 @@ public class MainActivityDelegate extends ActivityDelegate
 		controlPanel = a.findViewById(R.id.control_panel);
 		floatingButton = a.findViewById(R.id.floating_button);
 		floatingButton.setScale(getPrefs().getTextIconSizePref(this));
+		if (AUTO) floatingButton.setVisibility(GONE);
 		controlPanel.bind(getMediaServiceBinder());
 
 		if (VERSION.SDK_INT >= VERSION_CODES.VANILLA_ICE_CREAM && !a.isCarActivity()) {

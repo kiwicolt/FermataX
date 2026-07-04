@@ -1,6 +1,8 @@
 package me.aap.fermata.addon.web.yt;
 
 import static me.aap.fermata.util.Utils.dynCtx;
+import static android.view.View.GONE;
+import static android.view.View.VISIBLE;
 
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -32,6 +34,8 @@ import me.aap.utils.function.LongSupplier;
 import me.aap.utils.pref.PreferenceStore;
 import me.aap.utils.pref.PreferenceStore.Pref;
 import me.aap.utils.pref.SharedPreferenceStore;
+import me.aap.utils.ui.activity.ActivityDelegate;
+import me.aap.utils.ui.fragment.ActivityFragment;
 import me.aap.utils.ui.view.ToolBarView;
 
 /**
@@ -192,7 +196,7 @@ public class YoutubeFragment extends WebBrowserFragment implements FermataServic
 
 	@Override
 	public ToolBarView.Mediator getToolBarMediator() {
-		return ToolBarView.Mediator.Invisible.instance;
+		return YoutubeToolBarMediator.instance;
 	}
 
 	@Override
@@ -221,5 +225,45 @@ public class YoutubeFragment extends WebBrowserFragment implements FermataServic
 	@Override
 	protected String getSearchUrl() {
 		return "https://www.youtube.com/results?search_query=";
+	}
+
+	private static final class YoutubeToolBarMediator implements ToolBarView.Mediator.BackTitle {
+		static final YoutubeToolBarMediator instance = new YoutubeToolBarMediator();
+
+		@Override
+		public void enable(ToolBarView tb, ActivityFragment f) {
+			ToolBarView.Mediator.BackTitle.super.enable(tb, f);
+			setBackVisibility(tb, f);
+		}
+
+		@Override
+		public void onActivityEvent(ToolBarView tb, ActivityDelegate a, long e) {
+			ToolBarView.Mediator.BackTitle.super.onActivityEvent(tb, a, e);
+			ActivityFragment f = a.getActiveFragment();
+			if (f != null) setBackVisibility(tb, f);
+		}
+
+		@Override
+		public void onClick(View v) {
+			ActivityDelegate.get(v.getContext()).onBackPressed();
+		}
+
+		@Override
+		public int getBackButtonVisibility(ActivityFragment f) {
+			return shouldShowBack(f) ? VISIBLE : GONE;
+		}
+
+		private void setBackVisibility(ToolBarView tb, ActivityFragment f) {
+			View b = tb.findViewById(getBackButtonId());
+			if (b != null) b.setVisibility(getBackButtonVisibility(f));
+		}
+
+		private boolean shouldShowBack(ActivityFragment f) {
+			if (!(f instanceof YoutubeFragment y)) return false;
+			FermataWebView v = y.getWebView();
+			if (v == null) return false;
+			FermataChromeClient c = v.getWebChromeClient();
+			return ((c != null) && c.isFullScreen()) || v.canGoBack() || !y.isRootPage();
+		}
 	}
 }

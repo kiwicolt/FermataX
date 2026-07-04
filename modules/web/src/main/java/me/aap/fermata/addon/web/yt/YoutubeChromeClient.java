@@ -6,6 +6,7 @@ import android.view.ViewGroup;
 
 import me.aap.fermata.addon.web.FermataChromeClient;
 import me.aap.fermata.addon.web.FermataWebView;
+import me.aap.fermata.BuildConfig;
 import me.aap.fermata.media.service.MediaSessionCallback;
 import me.aap.fermata.ui.activity.MainActivityDelegate;
 import me.aap.fermata.ui.view.VideoView;
@@ -49,6 +50,7 @@ public class YoutubeChromeClient extends FermataChromeClient {
 
 	protected void setFullScreen(MainActivityDelegate a, boolean fullScreen) {
 		a.setVideoMode(fullScreen, getFullScreenView());
+		if (BuildConfig.AUTO) a.setBarsHidden(fullScreen);
 	}
 
 	@Override

@@ -43,6 +43,7 @@ import me.aap.utils.ui.view.ToolBarView;
 public class DashboardFragment extends MainActivityFragment
 		implements AddonManager.Listener, PreferenceStore.Listener, FermataServiceUiBinder.Listener {
 	private DashboardAdapter adapter;
+	private RecyclerView list;
 	private PreferenceStore prefs;
 	private FermataServiceUiBinder binder;
 
@@ -82,6 +83,7 @@ public class DashboardFragment extends MainActivityFragment
 		Context localizedCtx = activity.getLocalizedContext(ctx);
 		prefs = activity.getPrefs();
 		RecyclerView list = view.findViewById(R.id.dashboard_list);
+		this.list = list;
 		DashboardAdapter dashboardAdapter = new DashboardAdapter(activity, localizedCtx, prefs);
 		adapter = dashboardAdapter;
 		int spanCount = getSpanCount(ctx);
@@ -124,6 +126,7 @@ public class DashboardFragment extends MainActivityFragment
 		DashboardAdapter adapter = this.adapter;
 		if (adapter != null) adapter.close();
 		this.adapter = null;
+		this.list = null;
 		super.onDestroyView();
 	}
 
@@ -166,6 +169,12 @@ public class DashboardFragment extends MainActivityFragment
 	public void reload() {
 		DashboardAdapter adapter = this.adapter;
 		if (adapter != null) adapter.reload();
+	}
+
+	public void showHome() {
+		refreshSmartTopCard();
+		RecyclerView list = this.list;
+		if (list != null) list.post(() -> list.scrollToPosition(0));
 	}
 
 	private static int getSpanCount(Context ctx) {

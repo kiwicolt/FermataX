@@ -30,6 +30,7 @@ import com.google.android.material.textview.MaterialTextView;
 
 import java.util.List;
 
+import me.aap.fermata.BuildConfig;
 import me.aap.fermata.R;
 import me.aap.fermata.media.engine.AudioStreamInfo;
 import me.aap.fermata.media.engine.MediaEngine;
@@ -100,7 +101,10 @@ public class ControlPanelView extends ConstraintLayout
 
 		ViewGroup g = findViewById(R.id.show_hide_bars);
 		showHideBars = (ImageView) g.getChildAt(0);
-		g.setOnClickListener(this::showHideBars);
+		g.setOnClickListener(this::backOrShowHideBars);
+		g.setOnTouchListener(this::backOrShowHideBarsTouch);
+		showHideBars.setOnClickListener(this::backOrShowHideBars);
+		showHideBars.setOnTouchListener(this::backOrShowHideBarsTouch);
 		g = findViewById(R.id.control_menu_button);
 		g.setOnClickListener(this::showMenu);
 		setShowHideBarsIcon(a);
@@ -214,6 +218,12 @@ public class ControlPanelView extends ConstraintLayout
 		if (visibility == VISIBLE) {
 			mask |= MASK_VISIBLE;
 			if ((mask & MASK_VIDEO_MODE) != 0) return;
+			if (isAutoUi(a)) {
+				super.setVisibility(GONE);
+				if (a.isBarsHidden()) a.setBarsHidden(false);
+				checkPlaybackTimer(a);
+				return;
+			}
 
 			super.setVisibility(VISIBLE);
 
@@ -224,7 +234,7 @@ public class ControlPanelView extends ConstraintLayout
 		} else {
 			mask &= ~MASK_VISIBLE;
 			super.setVisibility(GONE);
-			a.getFloatingButton().setVisibility(VISIBLE);
+			a.getFloatingButton().setVisibility(isAutoUi(a) ? GONE : VISIBLE);
 
 			if (a.isBarsHidden()) {
 				a.setBarsHidden(false);
@@ -240,22 +250,23 @@ public class ControlPanelView extends ConstraintLayout
 		hideTimer = null;
 		mask |= MASK_VIDEO_MODE;
 
-		a.setBarsHidden(true);
-		setShowHideBarsIcon(a);
-
 		View info = (v != null) ? v.getVideoInfoView() : null;
 		View fb = a.getFloatingButton();
 		int delay = getStartDelay();
+		a.setBarsHidden(!isAutoUi(a) || (delay == 0));
+		setShowHideBarsIcon(a);
 
 		if (delay == 0) {
 			fb.setVisibility(GONE);
 			if (info != null) info.setVisibility(GONE);
 			super.setVisibility(GONE);
 		} else {
-			fb.setVisibility(VISIBLE);
-			if (info != null) info.setVisibility(VISIBLE);
+			fb.setVisibility(isAutoUi(a) ? GONE : VISIBLE);
+			if (info != null) info.setVisibility(isAutoUi(a) ? GONE : VISIBLE);
+			updateAutoVideoTitle(a);
 			super.setVisibility(VISIBLE);
-			hideTimer = new HideTimer(a, delay, false, info, fb);
+			hideTimer = isAutoUi(a) ? new HideTimer(a, delay, false, info) :
+					new HideTimer(a, delay, false, info, fb);
 			a.postDelayed(hideTimer, delay);
 		}
 
@@ -266,7 +277,14 @@ public class ControlPanelView extends ConstraintLayout
 		MainActivityDelegate a = getActivity();
 		hideTimer = null;
 		mask &= ~MASK_VIDEO_MODE;
-		a.getFloatingButton().setVisibility(VISIBLE);
+		a.getFloatingButton().setVisibility(isAutoUi(a) ? GONE : VISIBLE);
+
+		if (isAutoUi(a)) {
+			super.setVisibility(GONE);
+			a.setBarsHidden(false);
+			setShowHideBarsIcon(a);
+			return;
+		}
 
 		if ((mask & MASK_VISIBLE) == 0) {
 			super.setVisibility(GONE);
@@ -281,6 +299,8 @@ public class ControlPanelView extends ConstraintLayout
 
 	@Override
 	public boolean onInterceptTouchEvent(MotionEvent e) {
+		if (isAutoBackTouch(e)) return true;
+
 		MainActivityDelegate a = getActivity();
 		if (hideTimer != null) {
 			int delay = getTouchDelay();
@@ -292,6 +312,12 @@ public class ControlPanelView extends ConstraintLayout
 			gestureDetector.onTouchEvent(me);
 			return super.onTouchEvent(me);
 		});
+	}
+
+	@Override
+	public boolean onTouchEvent(MotionEvent e) {
+		if (handleAutoBackTouchEvent(e)) return true;
+		return super.onTouchEvent(e);
 	}
 
 	@Override
@@ -391,15 +417,19 @@ public class ControlPanelView extends ConstraintLayout
 		if (getVisibility() == VISIBLE) {
 			super.setVisibility(GONE);
 			fb.setVisibility(GONE);
+			if (isAutoUi(a)) a.setBarsHidden(true);
 			if (a.getPrefs().getSysBarsOnVideoTouchPref()) a.setFullScreen(true);
 			if (info != null) info.setVisibility(GONE);
 		} else {
 			super.setVisibility(VISIBLE);
-			fb.setVisibility(VISIBLE);
+			fb.setVisibility(isAutoUi(a) ? GONE : VISIBLE);
+			if (isAutoUi(a)) a.setBarsHidden(false);
 			if (a.getPrefs().getSysBarsOnVideoTouchPref()) a.setFullScreen(false);
-			if (info != null) info.setVisibility(VISIBLE);
+			if (info != null) info.setVisibility(isAutoUi(a) ? GONE : VISIBLE);
+			updateAutoVideoTitle(a);
 			clearFocus();
-			hideTimer = new HideTimer(a, delay, false, info, fb);
+			hideTimer = isAutoUi(a) ? new HideTimer(a, delay, false, info) :
+					new HideTimer(a, delay, false, info, fb);
 			a.postDelayed(hideTimer, delay);
 		}
 
@@ -425,10 +455,13 @@ public class ControlPanelView extends ConstraintLayout
 		View fb = a.getFloatingButton();
 		int delay = getSeekDelay();
 		super.setVisibility(VISIBLE);
-		fb.setVisibility(VISIBLE);
-		if (info != null) info.setVisibility(VISIBLE);
+		fb.setVisibility(isAutoUi(a) ? GONE : VISIBLE);
+		if (isAutoUi(a)) a.setBarsHidden(false);
+		if (info != null) info.setVisibility(isAutoUi(a) ? GONE : VISIBLE);
+		updateAutoVideoTitle(a);
 		clearFocus();
-		hideTimer = new HideTimer(a, delay, true, info, fb);
+		hideTimer = isAutoUi(a) ? new HideTimer(a, delay, true, info) :
+				new HideTimer(a, delay, true, info, fb);
 		a.postDelayed(hideTimer, delay);
 		checkPlaybackTimer(a);
 	}
@@ -492,10 +525,82 @@ public class ControlPanelView extends ConstraintLayout
 		return id == R.id.seek_bar || id == R.id.show_hide_bars || id == R.id.control_menu_button;
 	}
 
-	private void showHideBars(View v) {
+	private void backOrShowHideBars(View v) {
 		MainActivityDelegate a = getActivity();
-		a.setBarsHidden(!a.isBarsHidden());
-		setShowHideBarsIcon(a);
+		if (isAutoUi(a)) {
+			performAutoPlayerBack(a);
+		} else {
+			a.setBarsHidden(!a.isBarsHidden());
+			setShowHideBarsIcon(a);
+		}
+	}
+
+	private boolean backOrShowHideBarsTouch(View v, MotionEvent e) {
+		MainActivityDelegate a = getActivity();
+		if (!isAutoUi(a)) return false;
+
+		switch (e.getActionMasked()) {
+			case MotionEvent.ACTION_DOWN -> {
+				v.setPressed(true);
+				return true;
+			}
+			case MotionEvent.ACTION_UP -> {
+				v.setPressed(false);
+				performAutoPlayerBack(a);
+				return true;
+			}
+			case MotionEvent.ACTION_CANCEL -> {
+				v.setPressed(false);
+				return true;
+			}
+			default -> {
+				return true;
+			}
+		}
+	}
+
+	private boolean handleAutoBackTouchEvent(MotionEvent e) {
+		if (!isAutoBackTouch(e) && (e.getActionMasked() != MotionEvent.ACTION_CANCEL)) return false;
+
+		View back = findViewById(R.id.show_hide_bars);
+		switch (e.getActionMasked()) {
+			case MotionEvent.ACTION_DOWN -> {
+				back.setPressed(true);
+				return true;
+			}
+			case MotionEvent.ACTION_UP -> {
+				back.setPressed(false);
+				performAutoPlayerBack(getActivity());
+				return true;
+			}
+			case MotionEvent.ACTION_CANCEL -> {
+				back.setPressed(false);
+				return true;
+			}
+			default -> {
+				return true;
+			}
+		}
+	}
+
+	private boolean isAutoBackTouch(MotionEvent e) {
+		MainActivityDelegate a = getActivity();
+		if (!isAutoUi(a)) return false;
+
+		View back = findViewById(R.id.show_hide_bars);
+		if (!isVisible(back)) return false;
+
+		float x = e.getX();
+		float y = e.getY();
+		return (x >= back.getLeft()) && (x <= back.getRight()) &&
+				(y >= back.getTop()) && (y <= back.getBottom());
+	}
+
+	private void performAutoPlayerBack(MainActivityDelegate a) {
+		hideTimer = null;
+		super.setVisibility(VISIBLE);
+		a.setBarsHidden(false);
+		a.onPlayerBackPressed();
 	}
 
 	public void showMenu() {
@@ -515,7 +620,20 @@ public class ControlPanelView extends ConstraintLayout
 
 	private void setShowHideBarsIcon(MainActivityDelegate a) {
 		a.post(() -> showHideBars.setImageResource(
-				a.isBarsHidden() ? R.drawable.expand : me.aap.utils.R.drawable.collapse));
+				isAutoUi(a) ? me.aap.utils.R.drawable.back :
+						a.isBarsHidden() ? R.drawable.expand : me.aap.utils.R.drawable.collapse));
+	}
+
+	private static boolean isAutoUi(MainActivityDelegate a) {
+		return BuildConfig.AUTO || a.isCarActivity();
+	}
+
+	private void updateAutoVideoTitle(MainActivityDelegate a) {
+		if (!isAutoUi(a)) return;
+		TextView title = a.getToolBar().findViewById(me.aap.utils.R.id.tool_bar_title);
+		if (title == null) return;
+		PlayableItem item = a.getMediaServiceBinder().getCurrentItem();
+		if (item != null) title.setText(item.getName());
 	}
 
 	private MainActivityDelegate getActivity() {
@@ -969,6 +1087,7 @@ public class ControlPanelView extends ConstraintLayout
 
 			if (activity.getPrefs().getSysBarsOnVideoTouchPref()) activity.setFullScreen(true);
 			ControlPanelView.super.setVisibility(GONE);
+			if (isAutoUi(activity)) activity.setBarsHidden(true);
 
 			for (View v : views) {
 				if (v != null) v.setVisibility(GONE);

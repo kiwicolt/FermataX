@@ -10,6 +10,7 @@ import static me.aap.fermata.media.pref.BrowsableItemPrefs.SORT_BY_FILE_NAME;
 import static me.aap.fermata.media.pref.BrowsableItemPrefs.SORT_BY_NAME;
 import static me.aap.fermata.media.pref.BrowsableItemPrefs.SORT_BY_NONE;
 import static me.aap.fermata.media.pref.BrowsableItemPrefs.SORT_BY_RND;
+import static me.aap.fermata.ui.activity.MainActivityListener.MODE_CHANGED;
 import static me.aap.utils.ui.UiUtils.isVisible;
 import static me.aap.utils.ui.activity.ActivityListener.FRAGMENT_CHANGED;
 import static me.aap.utils.ui.activity.ActivityListener.FRAGMENT_CONTENT_CHANGED;
@@ -21,6 +22,7 @@ import androidx.annotation.IdRes;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 
+import me.aap.fermata.BuildConfig;
 import me.aap.fermata.R;
 import me.aap.fermata.addon.AddonManager;
 import me.aap.fermata.addon.FermataAddon;
@@ -60,7 +62,7 @@ public class ToolBarMediator implements ToolBarView.Mediator.BackTitleFilter {
 			addButton(tb, gridIcon, ToolBarMediator::onGridButtonClick, R.id.tool_grid);
 		}
 
-		if ((f instanceof MediaLibFragment) && a.getPrefs().getShowPgUpDownPref(a)) {
+		if (!BuildConfig.AUTO && (f instanceof MediaLibFragment) && a.getPrefs().getShowPgUpDownPref(a)) {
 			addButton(tb, R.drawable.pg_down, ToolBarMediator::onPgUpDownButtonClick, R.id.tool_pg_down, LEFT);
 			addButton(tb, R.drawable.pg_up, ToolBarMediator::onPgUpDownButtonClick, R.id.tool_pg_up, LEFT);
 		} else {
@@ -88,9 +90,12 @@ public class ToolBarMediator implements ToolBarView.Mediator.BackTitleFilter {
 	public void onActivityEvent(ToolBarView view, ActivityDelegate a, long e) {
 		ToolBarView.Mediator.BackTitleFilter.super.onActivityEvent(view, a, e);
 
-		if ((e == FRAGMENT_CHANGED) || e == FRAGMENT_CONTENT_CHANGED) {
+		if ((e == FRAGMENT_CHANGED) || (e == FRAGMENT_CONTENT_CHANGED) || (e == MODE_CHANGED)) {
 			ActivityFragment f = a.getActiveFragment();
-			if (f != null) setButtonsVisibility(view, f);
+			if (f != null) {
+				setButtonVisibility(view, me.aap.utils.R.id.tool_bar_back_button, getBackButtonVisibility(f));
+				setButtonsVisibility(view, f);
+			}
 		}
 	}
 
@@ -310,5 +315,15 @@ public class ToolBarMediator implements ToolBarView.Mediator.BackTitleFilter {
 	private static void setSortBy(MediaLibFragment.ListAdapter adapter, int sortBy) {
 		BrowsableItem p = adapter.getParent();
 		p.updateSorting().main().thenRun(() -> p.getPrefs().setSortByPref(sortBy));
+	}
+
+	@Override
+	public int getBackButtonVisibility(ActivityFragment f) {
+		if (!BuildConfig.AUTO) {
+			return ToolBarView.Mediator.BackTitleFilter.super.getBackButtonVisibility(f);
+		}
+
+		MainActivityDelegate a = MainActivityDelegate.get(f.requireContext());
+		return (a.getBody().isVideoMode() || (f instanceof DashboardFragment)) ? GONE : VISIBLE;
 	}
 }
