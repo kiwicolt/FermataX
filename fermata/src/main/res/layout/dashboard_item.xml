@@ -33,11 +33,12 @@
         android:textStyle="bold"
         android:textAppearance="?attr/textAppearanceListItem"
         app:layout_constraintBottom_toTopOf="@id/dashboard_item_subtitle"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/dashboard_item_actions"
         app:layout_constraintStart_toEndOf="@id/dashboard_item_icon"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_chainStyle="packed"
         app:layout_goneMarginBottom="0dp"
+        app:layout_goneMarginEnd="0dp"
         android:layout_marginStart="12dp" />
 
     <com.google.android.material.textview.MaterialTextView
@@ -52,8 +53,56 @@
         android:textAppearance="?android:attr/textAppearanceSmall"
         android:textColor="?android:attr/textColorSecondary"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/dashboard_item_actions"
         app:layout_constraintStart_toStartOf="@id/dashboard_item_title"
-        app:layout_constraintTop_toBottomOf="@id/dashboard_item_title" />
+        app:layout_constraintTop_toBottomOf="@id/dashboard_item_title"
+        app:layout_goneMarginEnd="0dp" />
+
+    <LinearLayout
+        android:id="@+id/dashboard_item_actions"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/dashboard_action_play_pause"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/media_item_bg"
+            android:contentDescription="@string/action_play_pause"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            app:srcCompat="@drawable/play_pause"
+            app:tint="?attr/colorOnSecondary" />
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/dashboard_action_favorite"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/media_item_bg"
+            android:contentDescription="@string/favorites_add"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            app:srcCompat="@drawable/favorite"
+            app:tint="?attr/colorOnSecondary" />
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/dashboard_action_back_to_list"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/media_item_bg"
+            android:contentDescription="@string/dashboard_back_to_list"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            app:srcCompat="@drawable/view_list"
+            app:tint="?attr/colorOnSecondary" />
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

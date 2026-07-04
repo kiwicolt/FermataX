@@ -306,6 +306,7 @@ public class FermataServiceUiBinder extends BasicEventBroadcaster<FermataService
 		@Override
 		public void onPlaybackStateChanged(PlaybackStateCompat state) {
 			if ((state == null) || !bound) return;
+			fireBroadcastEvent(l -> l.onPlaybackStateChanged(state));
 
 			switch (state.getState()) {
 				case PlaybackStateCompat.STATE_PAUSED:
@@ -537,6 +538,9 @@ public class FermataServiceUiBinder extends BasicEventBroadcaster<FermataService
 	public interface Listener {
 
 		void onPlayableChanged(PlayableItem oldItem, PlayableItem newItem);
+
+		default void onPlaybackStateChanged(PlaybackStateCompat state) {
+		}
 
 		default void onPlaybackError(String message) {
 		}

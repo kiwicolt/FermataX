@@ -6,11 +6,13 @@ import static me.aap.utils.ui.UiUtils.ID_NULL;
 import android.content.Context;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.support.v4.media.session.PlaybackStateCompat;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -22,12 +24,12 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 import me.aap.fermata.FermataApplication;
 import me.aap.fermata.R;
 import me.aap.fermata.addon.AddonInfo;
 import me.aap.fermata.addon.AddonManager;
+import me.aap.fermata.media.lib.MediaLib.Item;
 import me.aap.fermata.media.lib.MediaLib.PlayableItem;
 import me.aap.fermata.media.service.FermataServiceUiBinder;
 import me.aap.fermata.ui.activity.MainActivityDelegate;
@@ -105,7 +107,7 @@ public class DashboardFragment extends MainActivityFragment
 	public void onResume() {
 		super.onResume();
 		DashboardAdapter adapter = this.adapter;
-		if (adapter != null) adapter.refreshContinueCard();
+		if (adapter != null) adapter.refreshSmartTopCard();
 	}
 
 	@Override
@@ -133,24 +135,32 @@ public class DashboardFragment extends MainActivityFragment
 	@Override
 	public void onPreferenceChanged(PreferenceStore store, List<PreferenceStore.Pref<?>> prefs) {
 		DashboardAdapter adapter = this.adapter;
-		if ((adapter != null) && prefs.contains(DashboardItems.PREF) && !adapter.isCallbackCall()) {
-			reload();
+		if (adapter == null) return;
+		if (prefs.contains(DashboardItems.PREF) && !adapter.isCallbackCall()) {
+			adapter.reload();
+		} else {
+			adapter.refreshDashboardSummaries();
 		}
 	}
 
 	@Override
 	public void onPlayableChanged(PlayableItem oldItem, PlayableItem newItem) {
-		refreshContinueCard();
+		refreshSmartTopCard();
+	}
+
+	@Override
+	public void onPlaybackStateChanged(PlaybackStateCompat state) {
+		refreshSmartTopCard();
 	}
 
 	@Override
 	public void onPlaybackStopped() {
-		refreshContinueCard();
+		refreshSmartTopCard();
 	}
 
-	private void refreshContinueCard() {
+	private void refreshSmartTopCard() {
 		DashboardAdapter adapter = this.adapter;
-		if (adapter != null) adapter.refreshContinueCard();
+		if (adapter != null) adapter.refreshSmartTopCard();
 	}
 
 	public void reload() {
@@ -180,15 +190,21 @@ public class DashboardFragment extends MainActivityFragment
 		}
 
 		private void reload() {
-			int pos = findContinueCardPosition();
-			DashboardCard continueCard = (pos == -1) ? null : cards.get(pos);
+			int pos = findSmartTopCardPosition();
+			DashboardCard smartTopCard = (pos == -1) ? null : cards.get(pos);
+			rebuildCards(smartTopCard);
+			notifyDataSetChanged();
+			refreshDashboardSummaries();
+			refreshSmartTopCard();
+		}
+
+		private void rebuildCards(@Nullable DashboardCard smartTopCard) {
 			cards.clear();
-			if (continueCard != null) cards.add(continueCard);
+			if (smartTopCard != null) cards.add(smartTopCard);
 			for (DashboardItems.Item item : DashboardItems.getDashboardItems(ctx, store)) {
+				if ((smartTopCard != null) && (smartTopCard.targetId == item.id)) continue;
 				cards.add(DashboardCard.item(item));
 			}
-			notifyDataSetChanged();
-			refreshContinueCard();
 		}
 
 		private void close() {
@@ -210,23 +226,60 @@ public class DashboardFragment extends MainActivityFragment
 			holder.title.setText(card.title);
 			holder.subtitle.setText(card.subtitle);
 			holder.subtitle.setVisibility(TextUtils.isEmpty(card.subtitle) ? View.GONE : View.VISIBLE);
+			boolean favorite = (card.playable != null) && card.playable.isFavoriteItem();
+			holder.actions.setVisibility((card.playable != null) && card.wide ? View.VISIBLE : View.GONE);
+			holder.playPause.setImageResource(card.playing ? R.drawable.pause : R.drawable.play);
+			holder.favorite.setImageResource(favorite ? R.drawable.favorite_filled : R.drawable.favorite);
+			holder.favorite.setContentDescription(ctx.getString(favorite ?
+					R.string.favorites_remove : R.string.favorites_add));
 			holder.itemView.setOnClickListener(v -> {
-				if (SystemClock.uptimeMillis() < ignoreClicksUntil) return;
+				if (!acceptClick()) return;
 				MainActivityDelegate a = activity;
 
 				if (card.playable != null) {
 					PlayableItem current = a.getCurrentPlayable();
-					if ((current == null) || !Objects.equals(current.getId(), card.playable.getId())) {
+					if ((current == null) || !isSamePlayable(current, card.playable)) {
+						a.getMediaServiceBinder().playItem(card.playable);
+					} else if (!a.getMediaServiceBinder().isPlaying()) {
 						a.getMediaServiceBinder().playItem(card.playable);
 					}
-					a.goToItem(card.playable);
+					goToPlayable(a, card.playable);
 					return;
 				}
 
-				DashboardItems.Item item = card.item;
-				if ((item == null) || (item.id == ID_NULL)) return;
+				if (card.targetId == ID_NULL) return;
 				a.setActiveNavItemId(R.id.dashboard_fragment);
-				a.showFragment(item.id);
+				a.showFragment(card.targetId);
+			});
+			holder.playPause.setOnClickListener(v -> {
+				if (!acceptClick() || (card.playable == null)) return;
+				MainActivityDelegate a = activity;
+				FermataServiceUiBinder binder = a.getMediaServiceBinder();
+				PlayableItem current = a.getCurrentPlayable();
+
+				if ((current == null) || !isSamePlayable(current, card.playable)) {
+					binder.playItem(card.playable);
+				} else if (binder.isPlaying()) {
+					binder.getMediaSessionCallback().onPause();
+				} else {
+					binder.playItem(card.playable);
+				}
+			});
+			holder.favorite.setOnClickListener(v -> {
+				if (!acceptClick() || (card.playable == null)) return;
+				if (card.playable.isFavoriteItem()) {
+					card.playable.getLib().getFavorites().removeItem(card.playable)
+							.main().onSuccess(done -> refreshDashboardSummaries());
+				} else {
+					card.playable.getLib().getFavorites().addItem(card.playable)
+							.main().onSuccess(done -> refreshDashboardSummaries());
+				}
+				int pos = holder.getAdapterPosition();
+				if (pos != RecyclerView.NO_POSITION) notifyItemChanged(pos);
+			});
+			holder.backToList.setOnClickListener(v -> {
+				if (!acceptClick() || (card.playable == null)) return;
+				goToPlayable(activity, card.playable);
 			});
 		}
 
@@ -239,47 +292,119 @@ public class DashboardFragment extends MainActivityFragment
 			return (position >= 0) && (position < cards.size()) && cards.get(position).wide;
 		}
 
-		private void refreshContinueCard() {
+		private boolean acceptClick() {
+			long now = SystemClock.uptimeMillis();
+			if (now < ignoreClicksUntil) return false;
+			ignoreClicksUntil = now + 350;
+			return true;
+		}
+
+		private void refreshSmartTopCard() {
 			if (closed) return;
 
 			MainActivityDelegate a = activity;
 			PlayableItem current = a.getCurrentPlayable();
 			if (current != null) {
-				setContinueCard(current, true);
+				setSmartTopCard(DashboardCard.playable(ctx, current, a.getMediaServiceBinder().isPlaying()));
 				return;
 			}
 
-			a.getLib().getLastPlayedItem().main().onSuccess(item -> setContinueCard(item, false))
-					.onFailure(err -> setContinueCard(null, false));
+			a.getLib().getRecent().getChildren().main().onSuccess(items -> {
+				if (closed) return;
+				if (activity.getCurrentPlayable() != null) {
+					refreshSmartTopCard();
+					return;
+				}
+
+				PlayableItem recent = getFirstPlayable(items);
+				if (recent != null) setSmartTopCard(DashboardCard.playable(ctx, recent, false));
+				else refreshLastPlayedTopCard();
+			}).onFailure(err -> refreshLastPlayedTopCard());
 		}
 
-		private int findContinueCardPosition() {
+		private void refreshLastPlayedTopCard() {
+			if (closed) return;
+			activity.getLib().getLastPlayedItem().main().onSuccess(item -> {
+				if (closed) return;
+				if (activity.getCurrentPlayable() != null) {
+					refreshSmartTopCard();
+					return;
+				}
+				if (item != null) setSmartTopCard(DashboardCard.playable(ctx, item, false));
+				else refreshRecentTopCard();
+			}).onFailure(err -> refreshRecentTopCard());
+		}
+
+		@Nullable
+		private PlayableItem getFirstPlayable(List<Item> items) {
+			for (Item item : items) {
+				if (item instanceof PlayableItem) return (PlayableItem) item;
+			}
+			return null;
+		}
+
+		private void refreshRecentTopCard() {
+			if (closed) return;
+			activity.getLib().getRecent().getChildren().main().onSuccess(items -> {
+				if (closed) return;
+				if (activity.getCurrentPlayable() != null) {
+					refreshSmartTopCard();
+					return;
+				}
+				setSmartTopCard(DashboardCard.recent(ctx, items));
+			}).onFailure(err -> setSmartTopCard(null));
+		}
+
+		private int findSmartTopCardPosition() {
 			for (int i = 0; i < cards.size(); i++) {
-				if (cards.get(i).playable != null) return i;
+				if (cards.get(i).fixed) return i;
 			}
 			return -1;
 		}
 
-		private void setContinueCard(PlayableItem item, boolean current) {
+		private void setSmartTopCard(DashboardCard card) {
 			if (closed) return;
-			int pos = findContinueCardPosition();
+			rebuildCards(card);
+			notifyDataSetChanged();
+			refreshDashboardSummaries();
+		}
 
-			if (item == null) {
-				if (pos != -1) {
-					cards.remove(pos);
-					notifyItemRemoved(pos);
-				}
+		private void refreshDashboardSummaries() {
+			if (closed) return;
+			activity.getLib().getFavorites().getChildren().main().onSuccess(items ->
+					updateCardSubtitle(R.id.favorites_fragment, DashboardCard.itemSummary(items,
+							ctx.getString(R.string.dashboard_favorites_sub))));
+			activity.getLib().getRecent().getChildren().main().onSuccess(items ->
+					updateCardSubtitle(R.id.recent_fragment, DashboardCard.itemSummary(items,
+							ctx.getString(R.string.dashboard_recent_sub))));
+		}
+
+		private void updateCardSubtitle(int targetId, CharSequence subtitle) {
+			if (closed) return;
+			for (int i = 0; i < cards.size(); i++) {
+				DashboardCard card = cards.get(i);
+				if (card.fixed || (card.targetId != targetId) ||
+						TextUtils.equals(card.subtitle, subtitle)) continue;
+				cards.set(i, card.withSubtitle(subtitle));
+				notifyItemChanged(i);
+				return;
+			}
+		}
+
+		private boolean isSamePlayable(PlayableItem a, PlayableItem b) {
+			return TextUtils.equals(a.getOrigId(), b.getOrigId()) || TextUtils.equals(a.getId(), b.getId());
+		}
+
+		private void goToPlayable(MainActivityDelegate a, PlayableItem item) {
+			String origId = item.getOrigId();
+			if (TextUtils.isEmpty(origId) || TextUtils.equals(origId, item.getId())) {
+				a.goToItem(item);
 				return;
 			}
 
-			DashboardCard card = DashboardCard.continueItem(ctx, item, current);
-			if (pos == -1) {
-				cards.add(0, card);
-				notifyItemInserted(0);
-			} else {
-				cards.set(pos, card);
-				notifyItemChanged(pos);
-			}
+			a.goToItem(origId).onSuccess(i -> {
+				if (i == null) a.goToItem(item);
+			}).onFailure(err -> a.goToItem(item));
 		}
 
 		@Override
@@ -320,28 +445,38 @@ public class DashboardFragment extends MainActivityFragment
 	private static final class DashboardCard {
 		final DashboardItems.Item item;
 		final PlayableItem playable;
+		final int targetId;
 		final int icon;
 		final CharSequence title;
 		final CharSequence subtitle;
 		final boolean fixed;
 		final boolean wide;
+		final boolean playing;
 
-		private DashboardCard(DashboardItems.Item item, PlayableItem playable, int icon,
-													CharSequence title, CharSequence subtitle, boolean fixed, boolean wide) {
+		private DashboardCard(DashboardItems.Item item, PlayableItem playable, int targetId, int icon,
+													CharSequence title, CharSequence subtitle, boolean fixed, boolean wide,
+													boolean playing) {
 			this.item = item;
 			this.playable = playable;
+			this.targetId = targetId;
 			this.icon = icon;
 			this.title = title;
 			this.subtitle = subtitle;
 			this.fixed = fixed;
 			this.wide = wide;
+			this.playing = playing;
 		}
 
 		static DashboardCard item(DashboardItems.Item item) {
-			return new DashboardCard(item, null, item.icon, item.title, item.subtitle, false, false);
+			return new DashboardCard(item, null, item.id, item.icon, item.title, item.subtitle, false, false,
+					false);
 		}
 
-		static DashboardCard continueItem(Context ctx, PlayableItem playable, boolean current) {
+		DashboardCard withSubtitle(CharSequence subtitle) {
+			return new DashboardCard(item, playable, targetId, icon, title, subtitle, fixed, wide, playing);
+		}
+
+		static DashboardCard playable(Context ctx, PlayableItem playable, boolean playing) {
 			String subtitle = playable.getName();
 			if (playable.getParent() != null) {
 				String parent = playable.getParent().getName();
@@ -350,9 +485,30 @@ public class DashboardFragment extends MainActivityFragment
 				}
 			}
 
-			return new DashboardCard(null, playable, playable.getIcon(),
-					ctx.getString(current ? R.string.dashboard_now_playing : R.string.dashboard_continue),
-					subtitle, true, true);
+			return new DashboardCard(null, playable, ID_NULL, playable.getIcon(),
+					ctx.getString(playing ? R.string.dashboard_now_playing : R.string.dashboard_continue),
+					subtitle, true, true, playing);
+		}
+
+		static DashboardCard recent(Context ctx, List<Item> items) {
+			return new DashboardCard(null, null, R.id.recent_fragment, R.drawable.timer,
+					ctx.getString(R.string.recent),
+					itemSummary(items, ctx.getString(R.string.dashboard_recent_sub)), true, true, false);
+		}
+
+		static CharSequence itemSummary(List<Item> items, CharSequence fallback) {
+			StringBuilder subtitle = new StringBuilder();
+			int count = 0;
+
+			for (Item item : items) {
+				String name = item.getName();
+				if (TextUtils.isEmpty(name)) continue;
+				if (count++ != 0) subtitle.append(" - ");
+				subtitle.append(name);
+				if (count == 3) break;
+			}
+
+			return (count == 0) ? fallback : subtitle;
 		}
 	}
 
@@ -360,12 +516,20 @@ public class DashboardFragment extends MainActivityFragment
 		final ImageView icon;
 		final TextView title;
 		final TextView subtitle;
+		final View actions;
+		final ImageButton playPause;
+		final ImageButton favorite;
+		final ImageButton backToList;
 
 		private ItemHolder(@NonNull View itemView) {
 			super(itemView);
 			icon = itemView.findViewById(R.id.dashboard_item_icon);
 			title = itemView.findViewById(R.id.dashboard_item_title);
 			subtitle = itemView.findViewById(R.id.dashboard_item_subtitle);
+			actions = itemView.findViewById(R.id.dashboard_item_actions);
+			playPause = itemView.findViewById(R.id.dashboard_action_play_pause);
+			favorite = itemView.findViewById(R.id.dashboard_action_favorite);
+			backToList = itemView.findViewById(R.id.dashboard_action_back_to_list);
 		}
 	}
 

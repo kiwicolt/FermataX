@@ -43,6 +43,7 @@
     <string name="dashboard_radio_sub">Popular stations and countries</string>
     <string name="dashboard_youtube_sub">Video search and playback</string>
     <string name="dashboard_web_sub">Open web media</string>
+    <string name="dashboard_back_to_list">Back to list</string>
     <string name="dashboard_felex_sub">Learning and tutor tools</string>
     <string name="dashboard_addon_sub">Addon shortcut</string>
     <string name="dashboard_addon_disabled_sub">Disabled in settings</string>
