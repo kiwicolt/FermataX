@@ -180,6 +180,7 @@ public class DashboardFragment extends MainActivityFragment
 		private final PreferenceStore store;
 		private final List<DashboardCard> cards = new ArrayList<>();
 		private long ignoreClicksUntil;
+		private int smartRefreshGeneration;
 		private boolean closed;
 
 		private DashboardAdapter(MainActivityDelegate activity, Context ctx, PreferenceStore store) {
@@ -229,6 +230,7 @@ public class DashboardFragment extends MainActivityFragment
 			boolean favorite = (card.playable != null) && card.playable.isFavoriteItem();
 			holder.actions.setVisibility((card.playable != null) && card.wide ? View.VISIBLE : View.GONE);
 			holder.playPause.setImageResource(card.playing ? R.drawable.pause : R.drawable.play);
+			holder.playPause.setContentDescription(ctx.getString(card.playing ? R.string.pause : R.string.play));
 			holder.favorite.setImageResource(favorite ? R.drawable.favorite_filled : R.drawable.favorite);
 			holder.favorite.setContentDescription(ctx.getString(favorite ?
 					R.string.favorites_remove : R.string.favorites_add));
@@ -264,18 +266,17 @@ public class DashboardFragment extends MainActivityFragment
 				} else {
 					binder.playItem(card.playable);
 				}
+				refreshSmartTopCard();
 			});
 			holder.favorite.setOnClickListener(v -> {
 				if (!acceptClick() || (card.playable == null)) return;
 				if (card.playable.isFavoriteItem()) {
 					card.playable.getLib().getFavorites().removeItem(card.playable)
-							.main().onSuccess(done -> refreshDashboardSummaries());
+							.main().onSuccess(done -> refreshSmartTopCard());
 				} else {
 					card.playable.getLib().getFavorites().addItem(card.playable)
-							.main().onSuccess(done -> refreshDashboardSummaries());
+							.main().onSuccess(done -> refreshSmartTopCard());
 				}
-				int pos = holder.getAdapterPosition();
-				if (pos != RecyclerView.NO_POSITION) notifyItemChanged(pos);
 			});
 			holder.backToList.setOnClickListener(v -> {
 				if (!acceptClick() || (card.playable == null)) return;
@@ -301,38 +302,40 @@ public class DashboardFragment extends MainActivityFragment
 
 		private void refreshSmartTopCard() {
 			if (closed) return;
+			int generation = ++smartRefreshGeneration;
 
 			MainActivityDelegate a = activity;
 			PlayableItem current = a.getCurrentPlayable();
 			if (current != null) {
-				setSmartTopCard(DashboardCard.playable(ctx, current, a.getMediaServiceBinder().isPlaying()));
+				setSmartTopCard(DashboardCard.playable(ctx, current, a.getMediaServiceBinder().isPlaying()),
+						generation);
 				return;
 			}
 
 			a.getLib().getRecent().getChildren().main().onSuccess(items -> {
-				if (closed) return;
+				if (!isSmartRefreshActive(generation)) return;
 				if (activity.getCurrentPlayable() != null) {
 					refreshSmartTopCard();
 					return;
 				}
 
 				PlayableItem recent = getFirstPlayable(items);
-				if (recent != null) setSmartTopCard(DashboardCard.playable(ctx, recent, false));
-				else refreshLastPlayedTopCard();
-			}).onFailure(err -> refreshLastPlayedTopCard());
+				if (recent != null) setSmartTopCard(DashboardCard.playable(ctx, recent, false), generation);
+				else refreshLastPlayedTopCard(generation);
+			}).onFailure(err -> refreshLastPlayedTopCard(generation));
 		}
 
-		private void refreshLastPlayedTopCard() {
-			if (closed) return;
+		private void refreshLastPlayedTopCard(int generation) {
+			if (!isSmartRefreshActive(generation)) return;
 			activity.getLib().getLastPlayedItem().main().onSuccess(item -> {
-				if (closed) return;
+				if (!isSmartRefreshActive(generation)) return;
 				if (activity.getCurrentPlayable() != null) {
 					refreshSmartTopCard();
 					return;
 				}
-				if (item != null) setSmartTopCard(DashboardCard.playable(ctx, item, false));
-				else refreshRecentTopCard();
-			}).onFailure(err -> refreshRecentTopCard());
+				if (item != null) setSmartTopCard(DashboardCard.playable(ctx, item, false), generation);
+				else refreshRecentTopCard(generation);
+			}).onFailure(err -> refreshRecentTopCard(generation));
 		}
 
 		@Nullable
@@ -343,16 +346,20 @@ public class DashboardFragment extends MainActivityFragment
 			return null;
 		}
 
-		private void refreshRecentTopCard() {
-			if (closed) return;
+		private void refreshRecentTopCard(int generation) {
+			if (!isSmartRefreshActive(generation)) return;
 			activity.getLib().getRecent().getChildren().main().onSuccess(items -> {
-				if (closed) return;
+				if (!isSmartRefreshActive(generation)) return;
 				if (activity.getCurrentPlayable() != null) {
 					refreshSmartTopCard();
 					return;
 				}
-				setSmartTopCard(DashboardCard.recent(ctx, items));
-			}).onFailure(err -> setSmartTopCard(null));
+				setSmartTopCard(DashboardCard.recent(ctx, items), generation);
+			}).onFailure(err -> setSmartTopCard(null, generation));
+		}
+
+		private boolean isSmartRefreshActive(int generation) {
+			return !closed && (generation == smartRefreshGeneration);
 		}
 
 		private int findSmartTopCardPosition() {
@@ -362,8 +369,8 @@ public class DashboardFragment extends MainActivityFragment
 			return -1;
 		}
 
-		private void setSmartTopCard(DashboardCard card) {
-			if (closed) return;
+		private void setSmartTopCard(DashboardCard card, int generation) {
+			if (!isSmartRefreshActive(generation)) return;
 			rebuildCards(card);
 			notifyDataSetChanged();
 			refreshDashboardSummaries();
