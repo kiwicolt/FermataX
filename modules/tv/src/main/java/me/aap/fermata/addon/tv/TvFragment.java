@@ -2,6 +2,7 @@ package me.aap.fermata.addon.tv;
 
 import static java.util.Objects.requireNonNull;
 import static me.aap.utils.async.Completed.completed;
+import static me.aap.utils.async.Completed.completedVoid;
 import static me.aap.utils.function.ResultConsumer.Cancel.isCancellation;
 
 import android.view.animation.Animation;
@@ -11,6 +12,7 @@ import androidx.annotation.NonNull;
 
 import java.util.Collections;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import me.aap.fermata.addon.AddonManager;
 import me.aap.fermata.addon.tv.m3u.TvM3uFile;
@@ -29,6 +31,7 @@ import me.aap.fermata.ui.activity.MainActivityDelegate;
 import me.aap.fermata.ui.fragment.MediaLibFragment;
 import me.aap.fermata.ui.view.MediaItemMenuHandler;
 import me.aap.utils.app.App;
+import me.aap.utils.async.Async;
 import me.aap.utils.async.FutureSupplier;
 import me.aap.utils.log.Log;
 import me.aap.utils.ui.UiUtils;
@@ -41,6 +44,9 @@ import me.aap.utils.ui.view.FloatingButton;
  * @author Andrey Pavlenko
  */
 public class TvFragment extends MediaLibFragment {
+	private static final long AUTO_RELOAD_INTERVAL = 10 * 60 * 1000L;
+	private long autoReloadTime;
+	private final AtomicBoolean autoReloading = new AtomicBoolean();
 
 	@Override
 	protected ListAdapter createAdapter(FermataServiceUiBinder b) {
@@ -72,7 +78,10 @@ public class TvFragment extends MediaLibFragment {
 		if (hidden) return;
 
 		TvAdapter a = getAdapter();
-		if (a != null) a.animateAddButton(a.getParent());
+		if (a != null) {
+			a.animateAddButton(a.getParent());
+			autoReloadSources(a);
+		}
 	}
 
 	@Override
@@ -121,6 +130,9 @@ public class TvFragment extends MediaLibFragment {
 	@Override
 	public void contributeToContextMenu(OverlayMenu.Builder b, MediaItemMenuHandler h) {
 		if (!(h.getItem() instanceof TvSourceItem)) return;
+		b.addItem(me.aap.fermata.R.id.refresh, me.aap.fermata.R.drawable.refresh,
+						me.aap.fermata.R.string.refresh).setData(h.getItem())
+				.setHandler(this::contextMenuItemSelected);
 		b.addItem(me.aap.fermata.R.id.edit, me.aap.fermata.R.drawable.edit,
 						me.aap.fermata.R.string.edit).setData(h.getItem())
 				.setHandler(this::contextMenuItemSelected);
@@ -132,7 +144,9 @@ public class TvFragment extends MediaLibFragment {
 
 	private boolean contextMenuItemSelected(OverlayMenuItem item) {
 		int id = item.getItemId();
-		if (id == me.aap.fermata.R.id.edit) {
+		if (id == me.aap.fermata.R.id.refresh) {
+			reloadSource(item.getData(), true);
+		} else if (id == me.aap.fermata.R.id.edit) {
 			TvSourceItem source = item.getData();
 
 			if (source instanceof TvM3uItem) {
@@ -172,6 +186,44 @@ public class TvFragment extends MediaLibFragment {
 			root.removeItem(item.getData()).onSuccess(v -> getAdapter().setParent(root));
 		}
 		return true;
+	}
+
+	private FutureSupplier<?> reloadSource(TvSourceItem source, boolean showError) {
+		return source.refresh().main().thenRun(this::reload).ifFail(err -> {
+			Log.e(err, "Failed to reload TV source ", source);
+			if (showError && !isCancellation(err)) {
+				String msg = err.getLocalizedMessage();
+				UiUtils.showAlert(getContext(), (msg != null) ? msg : err.toString());
+			}
+			return null;
+		});
+	}
+
+	private void autoReloadSources(TvAdapter adapter) {
+		if (!(adapter.getParent() instanceof TvRootItem)) return;
+
+		long now = System.currentTimeMillis();
+		if ((now - autoReloadTime) < AUTO_RELOAD_INTERVAL) return;
+		if (!autoReloading.compareAndSet(false, true)) return;
+		autoReloadTime = now;
+
+		getRootItem().getUnsortedChildren().onCompletion((children, err) -> {
+			if ((err != null) || (children == null)) {
+				autoReloading.set(false);
+				if (err != null) Log.e(err, "Failed to load TV sources for auto reload");
+				return;
+			}
+
+			Async.forEach(child -> (child instanceof TvSourceItem) ?
+					((TvSourceItem) child).refresh().ifFail(fail -> {
+						Log.e(fail, "Failed to auto reload TV source ", child);
+						return null;
+					}) : completedVoid(), children).main().onCompletion((done, fail) -> {
+				autoReloading.set(false);
+				TvAdapter a = getAdapter();
+				if ((a != null) && (a.getParent() instanceof TvRootItem)) reload();
+			});
+		});
 	}
 
 	@Override

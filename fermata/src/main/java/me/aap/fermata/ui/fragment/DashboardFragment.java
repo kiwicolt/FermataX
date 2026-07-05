@@ -31,6 +31,7 @@ import me.aap.fermata.addon.AddonInfo;
 import me.aap.fermata.addon.AddonManager;
 import me.aap.fermata.media.lib.MediaLib.Item;
 import me.aap.fermata.media.lib.MediaLib.PlayableItem;
+import me.aap.fermata.media.lib.MediaLib.Recent;
 import me.aap.fermata.media.service.FermataServiceUiBinder;
 import me.aap.fermata.ui.activity.MainActivityDelegate;
 import me.aap.utils.pref.PreferenceStore;
@@ -184,6 +185,8 @@ public class DashboardFragment extends MainActivityFragment
 	}
 
 	private static final class DashboardAdapter extends MovableRecyclerViewAdapter<ItemHolder> {
+		private static final int VIEW_TYPE_CARD = 0;
+		private static final int VIEW_TYPE_SMART_TOP = 1;
 		private final Context ctx;
 		private final MainActivityDelegate activity;
 		private final PreferenceStore store;
@@ -212,6 +215,7 @@ public class DashboardFragment extends MainActivityFragment
 			cards.clear();
 			if (smartTopCard != null) cards.add(smartTopCard);
 			for (DashboardItems.Item item : DashboardItems.getDashboardItems(ctx, store)) {
+				if (item.id == R.id.recent_fragment) continue;
 				if ((smartTopCard != null) && (smartTopCard.targetId == item.id)) continue;
 				cards.add(DashboardCard.item(item));
 			}
@@ -224,14 +228,17 @@ public class DashboardFragment extends MainActivityFragment
 		@NonNull
 		@Override
 		public ItemHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+			int layout = (viewType == VIEW_TYPE_SMART_TOP) ?
+					R.layout.dashboard_smart_top_item : R.layout.dashboard_item;
 			View v = LayoutInflater.from(parent.getContext())
-					.inflate(R.layout.dashboard_item, parent, false);
+					.inflate(layout, parent, false);
 			return new ItemHolder(v);
 		}
 
 		@Override
 		public void onBindViewHolder(@NonNull ItemHolder holder, int position) {
 			DashboardCard card = cards.get(position);
+			boolean smartTop = card.fixed && card.wide;
 			holder.icon.setImageResource(card.icon);
 			holder.title.setText(card.title);
 			holder.subtitle.setText(card.subtitle);
@@ -243,6 +250,7 @@ public class DashboardFragment extends MainActivityFragment
 			holder.favorite.setImageResource(favorite ? R.drawable.favorite_filled : R.drawable.favorite);
 			holder.favorite.setContentDescription(ctx.getString(favorite ?
 					R.string.favorites_remove : R.string.favorites_add));
+			bindSmartTop(holder, card, smartTop);
 			holder.itemView.setOnClickListener(v -> {
 				if (!acceptClick()) return;
 				MainActivityDelegate a = activity;
@@ -277,6 +285,20 @@ public class DashboardFragment extends MainActivityFragment
 				}
 				refreshSmartTopCard();
 			});
+			if (holder.prev != null) {
+				holder.prev.setOnClickListener(v -> {
+					if (!acceptClick() || (card.playable == null)) return;
+					activity.getMediaSessionCallback().onSkipToPrevious();
+					refreshSmartTopCard();
+				});
+			}
+			if (holder.next != null) {
+				holder.next.setOnClickListener(v -> {
+					if (!acceptClick() || (card.playable == null)) return;
+					activity.getMediaSessionCallback().onSkipToNext();
+					refreshSmartTopCard();
+				});
+			}
 			holder.favorite.setOnClickListener(v -> {
 				if (!acceptClick() || (card.playable == null)) return;
 				if (card.playable.isFavoriteItem()) {
@@ -291,6 +313,12 @@ public class DashboardFragment extends MainActivityFragment
 				if (!acceptClick() || (card.playable == null)) return;
 				goToPlayable(activity, card.playable);
 			});
+		}
+
+		@Override
+		public int getItemViewType(int position) {
+			DashboardCard card = cards.get(position);
+			return card.fixed && card.wide ? VIEW_TYPE_SMART_TOP : VIEW_TYPE_CARD;
 		}
 
 		@Override
@@ -315,22 +343,21 @@ public class DashboardFragment extends MainActivityFragment
 
 			MainActivityDelegate a = activity;
 			PlayableItem current = a.getCurrentPlayable();
-			if (current != null) {
-				setSmartTopCard(DashboardCard.playable(ctx, current, a.getMediaServiceBinder().isPlaying()),
-						generation);
-				return;
-			}
-
 			a.getLib().getRecent().getChildren().main().onSuccess(items -> {
 				if (!isSmartRefreshActive(generation)) return;
-				if (activity.getCurrentPlayable() != null) {
-					refreshSmartTopCard();
-					return;
+				PlayableItem active = activity.getCurrentPlayable();
+				if (active != null) {
+					setSmartTopCard(DashboardCard.playable(ctx, active,
+							a.getMediaServiceBinder().isPlaying(), getRecentPlayables(items, active)), generation);
+				} else {
+					PlayableItem recent = getFirstPlayable(items);
+					if (recent != null) {
+						setSmartTopCard(DashboardCard.playable(ctx, recent, false,
+								getRecentPlayables(items, recent)), generation);
+					} else {
+						refreshLastPlayedTopCard(generation);
+					}
 				}
-
-				PlayableItem recent = getFirstPlayable(items);
-				if (recent != null) setSmartTopCard(DashboardCard.playable(ctx, recent, false), generation);
-				else refreshLastPlayedTopCard(generation);
 			}).onFailure(err -> refreshLastPlayedTopCard(generation));
 		}
 
@@ -342,7 +369,7 @@ public class DashboardFragment extends MainActivityFragment
 					refreshSmartTopCard();
 					return;
 				}
-				if (item != null) setSmartTopCard(DashboardCard.playable(ctx, item, false), generation);
+				if (item != null) setSmartTopCard(DashboardCard.playable(ctx, item, false, null), generation);
 				else refreshRecentTopCard(generation);
 			}).onFailure(err -> refreshRecentTopCard(generation));
 		}
@@ -411,6 +438,17 @@ public class DashboardFragment extends MainActivityFragment
 			return TextUtils.equals(a.getOrigId(), b.getOrigId()) || TextUtils.equals(a.getId(), b.getId());
 		}
 
+		private List<PlayableItem> getRecentPlayables(List<Item> items, @Nullable PlayableItem exclude) {
+			List<PlayableItem> recent = new ArrayList<>(3);
+			for (Item item : items) {
+				if (!(item instanceof PlayableItem playable)) continue;
+				if ((exclude != null) && isSamePlayable(exclude, playable)) continue;
+				recent.add(playable);
+				if (recent.size() == 3) break;
+			}
+			return recent;
+		}
+
 		private void goToPlayable(MainActivityDelegate a, PlayableItem item) {
 			String origId = item.getOrigId();
 			if (TextUtils.isEmpty(origId) || TextUtils.equals(origId, item.getId())) {
@@ -421,6 +459,42 @@ public class DashboardFragment extends MainActivityFragment
 			a.goToItem(origId).onSuccess(i -> {
 				if (i == null) a.goToItem(item);
 			}).onFailure(err -> a.goToItem(item));
+		}
+
+		private void bindSmartTop(ItemHolder holder, DashboardCard card, boolean smartTop) {
+			if (holder.recentPanel == null) return;
+			holder.recentPanel.setVisibility(smartTop ? View.VISIBLE : View.GONE);
+			holder.recentPanel.setOnClickListener(v -> {
+				if (!acceptClick()) return;
+				activity.setActiveNavItemId(R.id.dashboard_fragment);
+				activity.showFragment(R.id.recent_fragment);
+			});
+			TextView[] views = holder.recentItems;
+			List<PlayableItem> items = card.recentItems;
+
+			for (int i = 0; i < views.length; i++) {
+				TextView view = views[i];
+				if (view == null) continue;
+				if ((items == null) || (i >= items.size())) {
+					view.setVisibility(i == 0 ? View.VISIBLE : View.GONE);
+					view.setText(i == 0 ? ctx.getString(R.string.dashboard_recent_sub) : "");
+					view.setOnClickListener(null);
+					view.setClickable(false);
+					view.setFocusable(false);
+					continue;
+				}
+
+				PlayableItem item = items.get(i);
+				view.setVisibility(View.VISIBLE);
+				view.setText(item.getName());
+				view.setClickable(true);
+				view.setFocusable(true);
+				view.setOnClickListener(v -> {
+					if (!acceptClick()) return;
+					activity.getMediaServiceBinder().playItem(item);
+					goToPlayable(activity, item);
+				});
+			}
 		}
 
 		@Override
@@ -468,10 +542,12 @@ public class DashboardFragment extends MainActivityFragment
 		final boolean fixed;
 		final boolean wide;
 		final boolean playing;
+		@Nullable
+		final List<PlayableItem> recentItems;
 
 		private DashboardCard(DashboardItems.Item item, PlayableItem playable, int targetId, int icon,
 													CharSequence title, CharSequence subtitle, boolean fixed, boolean wide,
-													boolean playing) {
+													boolean playing, @Nullable List<PlayableItem> recentItems) {
 			this.item = item;
 			this.playable = playable;
 			this.targetId = targetId;
@@ -481,20 +557,23 @@ public class DashboardFragment extends MainActivityFragment
 			this.fixed = fixed;
 			this.wide = wide;
 			this.playing = playing;
+			this.recentItems = recentItems;
 		}
 
 		static DashboardCard item(DashboardItems.Item item) {
 			return new DashboardCard(item, null, item.id, item.icon, item.title, item.subtitle, false, false,
-					false);
+					false, null);
 		}
 
 		DashboardCard withSubtitle(CharSequence subtitle) {
-			return new DashboardCard(item, playable, targetId, icon, title, subtitle, fixed, wide, playing);
+			return new DashboardCard(item, playable, targetId, icon, title, subtitle, fixed, wide, playing,
+					recentItems);
 		}
 
-		static DashboardCard playable(Context ctx, PlayableItem playable, boolean playing) {
+		static DashboardCard playable(Context ctx, PlayableItem playable, boolean playing,
+																	@Nullable List<PlayableItem> recentItems) {
 			String subtitle = playable.getName();
-			if (playable.getParent() != null) {
+			if ((playable.getParent() != null) && !(playable.getParent() instanceof Recent)) {
 				String parent = playable.getParent().getName();
 				if (!TextUtils.isEmpty(parent)) {
 					subtitle = ctx.getString(R.string.dashboard_continue_sub, subtitle, parent);
@@ -503,13 +582,18 @@ public class DashboardFragment extends MainActivityFragment
 
 			return new DashboardCard(null, playable, ID_NULL, playable.getIcon(),
 					ctx.getString(playing ? R.string.dashboard_now_playing : R.string.dashboard_continue),
-					subtitle, true, true, playing);
+					subtitle, true, true, playing, recentItems);
 		}
 
 		static DashboardCard recent(Context ctx, List<Item> items) {
+			List<PlayableItem> recent = new ArrayList<>(3);
+			for (Item item : items) {
+				if (item instanceof PlayableItem playable) recent.add(playable);
+				if (recent.size() == 3) break;
+			}
 			return new DashboardCard(null, null, R.id.recent_fragment, R.drawable.timer,
 					ctx.getString(R.string.recent),
-					itemSummary(items, ctx.getString(R.string.dashboard_recent_sub)), true, true, false);
+					itemSummary(items, ctx.getString(R.string.dashboard_recent_sub)), true, true, false, recent);
 		}
 
 		static CharSequence itemSummary(List<Item> items, CharSequence fallback) {
@@ -536,6 +620,10 @@ public class DashboardFragment extends MainActivityFragment
 		final ImageButton playPause;
 		final ImageButton favorite;
 		final ImageButton backToList;
+		final ImageButton prev;
+		final ImageButton next;
+		final View recentPanel;
+		final TextView[] recentItems;
 
 		private ItemHolder(@NonNull View itemView) {
 			super(itemView);
@@ -546,6 +634,14 @@ public class DashboardFragment extends MainActivityFragment
 			playPause = itemView.findViewById(R.id.dashboard_action_play_pause);
 			favorite = itemView.findViewById(R.id.dashboard_action_favorite);
 			backToList = itemView.findViewById(R.id.dashboard_action_back_to_list);
+			prev = itemView.findViewById(R.id.dashboard_action_prev);
+			next = itemView.findViewById(R.id.dashboard_action_next);
+			recentPanel = itemView.findViewById(R.id.dashboard_recent_panel);
+			recentItems = new TextView[]{
+					itemView.findViewById(R.id.dashboard_recent_item_1),
+					itemView.findViewById(R.id.dashboard_recent_item_2),
+					itemView.findViewById(R.id.dashboard_recent_item_3)
+			};
 		}
 	}
 
