@@ -10,8 +10,10 @@ ext {
     addons = [
             [
                     name : 'radio',
+                    id   : 'radio_fragment',
                     icon : 'radio',
                     class: 'me.aap.fermata.addon.radio.RadioAddon',
+                    fragment: true,
                     order: 4
             ]
     ]

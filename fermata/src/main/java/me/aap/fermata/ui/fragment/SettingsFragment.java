@@ -59,6 +59,7 @@ import me.aap.fermata.action.Action;
 import me.aap.fermata.action.Key;
 import me.aap.fermata.addon.AddonInfo;
 import me.aap.fermata.addon.AddonManager;
+import me.aap.fermata.addon.AddonRegistry;
 import me.aap.fermata.addon.FermataAddon;
 import me.aap.fermata.addon.SubGenAddon;
 import me.aap.fermata.media.lib.MediaLib;
@@ -831,7 +832,7 @@ public class SettingsFragment extends MainActivityFragment
 		PreferenceSet sub = set.subSet(o -> o.title = R.string.addons);
 		PreferenceStore store = FermataApplication.get().getPreferenceStore();
 
-		for (AddonInfo addon : BuildConfig.ADDONS) {
+		for (AddonInfo addon : AddonRegistry.get().getAll()) {
 			if (!addon.hasSettings) continue;
 			AddonPrefsBuilder b = new AddonPrefsBuilder(amgr, addon, store);
 			PreferenceSet sub1 = sub.subSet(b);

@@ -1,8 +1,6 @@
 package me.aap.fermata.addon;
 
 import static java.util.Collections.singletonList;
-import static me.aap.utils.async.Completed.completed;
-import static me.aap.utils.async.Completed.failed;
 import static me.aap.utils.function.ResultConsumer.Cancel.isCancellation;
 
 import android.app.Activity;
@@ -18,7 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import me.aap.fermata.BuildConfig;
 import me.aap.fermata.FermataApplication;
 import me.aap.fermata.R;
 import me.aap.fermata.media.lib.DefaultMediaLib;
@@ -47,16 +44,19 @@ public class AddonManager extends BasicEventBroadcaster<AddonManager.Listener>
 			Pref.b("ADDONS_ENABLED_BY_DEFAULT", false);
 	private static final Pref<BooleanSupplier> ADDONS_ENABLED_BY_DEFAULT_V2 =
 			Pref.b("ADDONS_ENABLED_BY_DEFAULT_V2", false);
+	private static final AddonRegistry registry = AddonRegistry.get();
 	private final Map<Object, FermataAddon> map = new HashMap<>();
-	private final List<FermataAddon> addons = new ArrayList<>(BuildConfig.ADDONS.length);
+	private final List<FermataAddon> addons = new ArrayList<>(registry.size());
 	private final Map<String, FutureSupplier<?>> installing = new HashMap<>();
 	private final Set<String> failedAddons = new HashSet<>();
+	private final AddonLauncher launcher = new AddonLauncher(this);
+	private final PreferenceStore store;
 
 	public AddonManager(PreferenceStore store) {
+		this.store = store;
 		enableAddonsByDefault(store);
 
-		for (AddonInfo i : BuildConfig.ADDONS) {
-			if (!BuildConfig.AUTO && i.isAuto) continue;
+		for (AddonInfo i : registry.getAvailable()) {
 			if (!store.getBooleanPref(i.enabledPref)) continue;
 			if (!loadAddon(i) && !failedAddons.contains(i.className)) install(i);
 		}
@@ -68,8 +68,7 @@ public class AddonManager extends BasicEventBroadcaster<AddonManager.Listener>
 		if (store.getBooleanPref(ADDONS_ENABLED_BY_DEFAULT_V2)) return;
 
 		try (PreferenceStore.Edit edit = store.editPreferenceStore(false)) {
-			for (AddonInfo i : BuildConfig.ADDONS) {
-				if (!BuildConfig.AUTO && i.isAuto) continue;
+			for (AddonInfo i : registry.getAvailable()) {
 				if (!i.enableByDefault) continue;
 				if (store.hasPref(i.enabledPref, false)) continue;
 				edit.setBooleanPref(i.enabledPref, true);
@@ -89,24 +88,39 @@ public class AddonManager extends BasicEventBroadcaster<AddonManager.Listener>
 		return map.get(moduleOrClassName);
 	}
 
+	public synchronized List<AddonInfo> getAddonInfos() {
+		return registry.getAvailable();
+	}
+
+	@Nullable
+	public synchronized AddonInfo getAddonInfo(Object moduleClassOrId) {
+		if (moduleClassOrId == null) return null;
+		AddonInfo info = registry.getAvailable(moduleClassOrId);
+		if (info != null) return info;
+
+		for (AddonInfo i : registry.getAvailable()) {
+			if (moduleClassOrId.equals(i.className)) return i;
+			FermataAddon a = map.get(i.className);
+			if ((a != null) && moduleClassOrId.equals(a.getAddonId())) return i;
+		}
+
+		return null;
+	}
+
+	public synchronized AddonState getAddonState(AddonInfo i) {
+		if (!registry.isAvailable(i) || !store.getBooleanPref(i.enabledPref)) return AddonState.DISABLED;
+		if (isLoaded(i)) return AddonState.LOADED;
+		if (failedAddons.contains(i.className)) return AddonState.FAILED;
+		if (installing.containsKey(i.className)) return AddonState.LOADING;
+		return AddonState.ENABLED_PENDING;
+	}
+
 	public <A extends FermataAddon> FutureSupplier<A> getOrInstallAddon(Class<A> c) {
 		return getOrInstallAddon(c.getName()).cast();
 	}
 
 	public synchronized FutureSupplier<FermataAddon> getOrInstallAddon(String moduleOrClassName) {
-		var a = getAddon(moduleOrClassName);
-		if (a != null) return completed(a);
-		var info = FermataAddon.findAddonInfo(moduleOrClassName);
-		var prefs = FermataApplication.get().getPreferenceStore();
-		if (!prefs.getBooleanPref(info.enabledPref)) prefs.applyBooleanPref(info.enabledPref, true);
-		install(info);
-		var pending = installing.get(info.className);
-		if (pending == null) {
-			a = getAddon(moduleOrClassName);
-			return a != null ? completed(a) :
-					failed(new RuntimeException("Failed to install addon: " + moduleOrClassName));
-		}
-		return pending.then(v -> getOrInstallAddon(info.className));
+		return launcher.getOrInstallAddon(moduleOrClassName);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -161,9 +175,17 @@ public class AddonManager extends BasicEventBroadcaster<AddonManager.Listener>
 		return null;
 	}
 
+	@IdRes
+	public synchronized int getFragmentId(Item i) {
+		MediaLibAddon a = getMediaLibAddon(i);
+		if (a == null) return 0;
+		AddonInfo info = a.getInfo();
+		return (info.addonId != 0) ? info.addonId : a.getFragmentId();
+	}
+
 	@Override
 	public void onPreferenceChanged(PreferenceStore store, List<PreferenceStore.Pref<?>> prefs) {
-		for (AddonInfo i : BuildConfig.ADDONS) {
+		for (AddonInfo i : registry.getAll()) {
 			if (prefs.contains(i.enabledPref)) {
 				if (store.getBooleanPref(i.enabledPref)) install(i);
 				else uninstall(i);
@@ -193,14 +215,23 @@ public class AddonManager extends BasicEventBroadcaster<AddonManager.Listener>
 		scheduleLoadAddon(i, task, 1);
 	}
 
+	synchronized void installAddon(AddonInfo i) {
+		install(i);
+	}
+
+	synchronized FutureSupplier<?> getInstallingTask(AddonInfo i) {
+		return installing.get(i.className);
+	}
+
 	private synchronized void installCompleted(AddonInfo i, FutureSupplier<Void> task) {
 		CollectionUtils.remove(installing, i.className, task);
 	}
 
 	private synchronized boolean loadAddon(AddonInfo i) {
-		if (map.containsKey(i.className)) return true;
+		if (isLoaded(i)) return true;
 		try {
-			FermataAddon a = (FermataAddon) Class.forName(i.className).newInstance();
+			FermataAddon a =
+					(FermataAddon) Class.forName(i.className).getDeclaredConstructor().newInstance();
 			PreferenceStore prefs = FermataApplication.get().getPreferenceStore();
 			a.install();
 			add(a);
@@ -246,7 +277,7 @@ public class AddonManager extends BasicEventBroadcaster<AddonManager.Listener>
 			fireBroadcastEvent(c -> c.onAddonChanged(this, i, false));
 			prefs.fireBroadcastEvent(l -> l.onPreferenceChanged(prefs, singletonList(i.enabledPref)));
 
-			for (AddonInfo ai : BuildConfig.ADDONS) {
+			for (AddonInfo ai : registry.getAll()) {
 				if (ai.moduleName.equals(i.moduleName)) return;
 			}
 
@@ -263,7 +294,7 @@ public class AddonManager extends BasicEventBroadcaster<AddonManager.Listener>
 		addons.add(a);
 		map.put(a.getAddonId(), a);
 		map.put(info.className, a);
-		map.put(info.moduleName, a);
+		if (registry.isUniqueModule(info)) map.put(info.moduleName, a);
 	}
 
 	private synchronized FermataAddon remove(AddonInfo info) {
@@ -271,8 +302,12 @@ public class AddonManager extends BasicEventBroadcaster<AddonManager.Listener>
 		if (a == null) return null;
 		addons.remove(a);
 		map.remove(a.getAddonId());
-		map.remove(info.moduleName);
+		if (registry.isUniqueModule(info)) map.remove(info.moduleName);
 		return a;
+	}
+
+	private boolean isLoaded(AddonInfo i) {
+		return map.containsKey(i.className);
 	}
 
 	private static DynamicModuleInstaller createInstaller(Activity a, AddonInfo ai) {

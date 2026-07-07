@@ -26,7 +26,9 @@ import me.aap.fermata.media.service.MediaSessionCallback;
 import me.aap.fermata.ui.activity.MainActivityDelegate;
 import me.aap.fermata.ui.activity.MainActivityListener;
 import me.aap.fermata.ui.fragment.MainActivityFragment;
+import me.aap.fermata.ui.fragment.MediaLibFragment;
 import me.aap.fermata.ui.fragment.SubtitlesFragment;
+import me.aap.fermata.ui.policy.PlaybackLayoutPolicy;
 import me.aap.utils.app.App;
 import me.aap.utils.async.FutureSupplier;
 import me.aap.utils.async.Promise;
@@ -55,7 +57,7 @@ public class BodyLayout extends SplitLayout
 		MainActivityDelegate.getActivityDelegate(ctx).onSuccess(a -> {
 			FermataServiceUiBinder b = a.getMediaServiceBinder();
 			b.addBroadcastListener(this);
-			a.addBroadcastListener(this, FRAGMENT_CHANGED | ACTIVITY_DESTROY);
+			a.addBroadcastListener(this, FRAGMENT_CHANGED | FRAGMENT_CONTENT_CHANGED | ACTIVITY_DESTROY);
 			b.getMediaSessionCallback().addBroadcastListener(this);
 			onPlayableChanged(null, b.getCurrentItem());
 		});
@@ -102,6 +104,7 @@ public class BodyLayout extends SplitLayout
 				getSwipeRefresh().setVisibility(VISIBLE);
 				lp.guidePercent = isPortrait() ? 0f : 1f;
 				a.setVideoMode(false, vv);
+				if (a.isBarsHidden()) a.setBarsHidden(false);
 			}
 			case VIDEO -> {
 				vv.setVisibility(VISIBLE);
@@ -121,7 +124,8 @@ public class BodyLayout extends SplitLayout
 				lp.guidePercent = a.getPrefs().getFloatPref(getSplitPercentPref(isPortrait()));
 				vv.showVideo(true);
 				a.setVideoMode(true, vv);
-				MediaItemListView.focusActive(getContext(), vv);
+				if (a.isBarsHidden()) a.setBarsHidden(false);
+				MediaItemListView.focusActive(getContext(), a.isCarActivity() ? null : vv);
 			}
 		}
 
@@ -149,8 +153,10 @@ public class BodyLayout extends SplitLayout
 			FermataServiceUiBinder b = a.getMediaServiceBinder();
 			b.removeBroadcastListener(this);
 			b.getMediaSessionCallback().removeBroadcastListener(this);
-		} else if (e == FRAGMENT_CHANGED) {
-			if (a.getActiveMediaLibFragment() == null) {
+		} else if ((e == FRAGMENT_CHANGED) || ((e == FRAGMENT_CONTENT_CHANGED) && isFrameMode())) {
+			MediaLibFragment f = a.getActiveMediaLibFragment();
+
+			if (f == null) {
 				setMode(Mode.FRAME);
 			} else {
 				MediaSessionCallback cb = a.getMediaSessionCallback();
@@ -161,10 +167,7 @@ public class BodyLayout extends SplitLayout
 					return;
 				}
 
-				MediaLib.PlayableItem i = eng.getSource();
-
-				if ((i != null) && i.isVideo() && eng.isSplitModeSupported() &&
-						(cb.getVideoView() == getVideoView())) {
+				if (PlaybackLayoutPolicy.shouldShowSplit(f, eng, cb, getVideoView())) {
 					setMode(Mode.BOTH);
 				} else {
 					setMode(Mode.FRAME);
@@ -202,14 +205,11 @@ public class BodyLayout extends SplitLayout
 		if (f instanceof SubtitlesFragment) a.goToCurrent();
 		else if (!f.isVideoModeSupported()) return;
 		MediaEngine eng = a.getMediaServiceBinder().getCurrentEngine();
+		Mode mode = PlaybackLayoutPolicy.getModeOnPlayableChanged(getMode(), newItem, eng);
 
-		if ((newItem == null) || !newItem.isVideo() || (eng == null) || !eng.isSplitModeSupported()) {
-			setMode(Mode.FRAME);
-		} else {
-			if (!eng.isVideoModeRequired()) setMode(Mode.FRAME);
-			else if (isFrameMode()) setMode(Mode.VIDEO);
-			else getVideoView().showVideo(false);
-		}
+		if (mode != getMode()) setMode(mode);
+		else if (PlaybackLayoutPolicy.shouldRefreshVideoInCurrentMode(mode, newItem, eng))
+			getVideoView().showVideo(false);
 
 		if ((eng != null) && (newItem != null) && !newItem.isVideo() && (getMode() == Mode.FRAME)) {
 			eng.selectSubtitleStream();

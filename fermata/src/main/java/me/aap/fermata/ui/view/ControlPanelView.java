@@ -253,6 +253,17 @@ public class ControlPanelView extends ConstraintLayout
 		View info = (v != null) ? v.getVideoInfoView() : null;
 		View fb = a.getFloatingButton();
 		int delay = getStartDelay();
+
+		if (isAutoUi(a) && a.getBody().isBothMode()) {
+			a.setBarsHidden(false);
+			fb.setVisibility(GONE);
+			if (info != null) info.setVisibility(GONE);
+			super.setVisibility(VISIBLE);
+			setShowHideBarsIcon(a);
+			checkPlaybackTimer(a);
+			return;
+		}
+
 		a.setBarsHidden(!isAutoUi(a) || (delay == 0));
 		setShowHideBarsIcon(a);
 
@@ -1078,6 +1089,11 @@ public class ControlPanelView extends ConstraintLayout
 		@Override
 		public void run() {
 			if ((hideTimer != this) || ((mask & MASK_VIDEO_MODE) == 0)) return;
+			if (isAutoUi(activity) && activity.getBody().isBothMode()) {
+				hideTimer = null;
+				activity.setBarsHidden(false);
+				return;
+			}
 
 			if (ControlPanelView.this.hasFocus()) {
 				hideTimer = new HideTimer(activity, delay, seekMode, views);

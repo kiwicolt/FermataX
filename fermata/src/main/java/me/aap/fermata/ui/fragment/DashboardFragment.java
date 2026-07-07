@@ -190,6 +190,7 @@ public class DashboardFragment extends MainActivityFragment
 		private final Context ctx;
 		private final MainActivityDelegate activity;
 		private final PreferenceStore store;
+		private final DashboardModelBuilder modelBuilder;
 		private final List<DashboardCard> cards = new ArrayList<>();
 		private long ignoreClicksUntil;
 		private int smartRefreshGeneration;
@@ -199,6 +200,7 @@ public class DashboardFragment extends MainActivityFragment
 			this.activity = activity;
 			this.ctx = ctx;
 			this.store = store;
+			modelBuilder = new DashboardModelBuilder(ctx, store);
 			reload();
 		}
 
@@ -212,13 +214,7 @@ public class DashboardFragment extends MainActivityFragment
 		}
 
 		private void rebuildCards(@Nullable DashboardCard smartTopCard) {
-			cards.clear();
-			if (smartTopCard != null) cards.add(smartTopCard);
-			for (DashboardItems.Item item : DashboardItems.getDashboardItems(ctx, store)) {
-				if (item.id == R.id.recent_fragment) continue;
-				if ((smartTopCard != null) && (smartTopCard.targetId == item.id)) continue;
-				cards.add(DashboardCard.item(item));
-			}
+			modelBuilder.rebuild(cards, smartTopCard);
 		}
 
 		private void close() {
@@ -268,7 +264,7 @@ public class DashboardFragment extends MainActivityFragment
 
 				if (card.targetId == ID_NULL) return;
 				a.setActiveNavItemId(R.id.dashboard_fragment);
-				a.showFragment(card.targetId);
+				a.showFragmentWhenReady(card.targetId);
 			});
 			holder.playPause.setOnClickListener(v -> {
 				if (!acceptClick() || (card.playable == null)) return;
@@ -524,6 +520,30 @@ public class DashboardFragment extends MainActivityFragment
 		}
 
 		private List<DashboardItems.Item> getDashboardItems() {
+			return modelBuilder.getDashboardItems(cards);
+		}
+	}
+
+	private static final class DashboardModelBuilder {
+		private final Context ctx;
+		private final PreferenceStore store;
+
+		private DashboardModelBuilder(Context ctx, PreferenceStore store) {
+			this.ctx = ctx;
+			this.store = store;
+		}
+
+		private void rebuild(List<DashboardCard> cards, @Nullable DashboardCard smartTopCard) {
+			cards.clear();
+			if (smartTopCard != null) cards.add(smartTopCard);
+			for (DashboardItems.Item item : DashboardItems.getDashboardItems(ctx, store)) {
+				if (item.id == R.id.recent_fragment) continue;
+				if ((smartTopCard != null) && (smartTopCard.targetId == item.id)) continue;
+				cards.add(DashboardCard.item(item));
+			}
+		}
+
+		private List<DashboardItems.Item> getDashboardItems(List<DashboardCard> cards) {
 			List<DashboardItems.Item> items = new ArrayList<>(cards.size());
 			for (DashboardCard card : cards) {
 				if (card.item != null) items.add(card.item);

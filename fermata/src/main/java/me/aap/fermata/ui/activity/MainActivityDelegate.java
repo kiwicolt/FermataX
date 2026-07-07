@@ -91,15 +91,15 @@ import me.aap.fermata.FermataApplication;
 import me.aap.fermata.R;
 import me.aap.fermata.action.Action;
 import me.aap.fermata.action.Key;
+import me.aap.fermata.addon.AddonInfo;
 import me.aap.fermata.addon.AddonManager;
+import me.aap.fermata.addon.AddonState;
 import me.aap.fermata.addon.FermataActivityAddon;
 import me.aap.fermata.addon.FermataAddon;
-import me.aap.fermata.addon.MediaLibAddon;
 import me.aap.fermata.media.engine.MediaEngineManager;
 import me.aap.fermata.media.lib.AtvInterface;
 import me.aap.fermata.media.lib.DefaultMediaLib;
 import me.aap.fermata.media.lib.ExportedItem;
-import me.aap.fermata.media.lib.ExtRoot;
 import me.aap.fermata.media.lib.IntentPlayable;
 import me.aap.fermata.media.lib.MediaLib;
 import me.aap.fermata.media.lib.MediaLib.BrowsableItem;
@@ -122,9 +122,11 @@ import me.aap.fermata.ui.fragment.PlaylistsFragment;
 import me.aap.fermata.ui.fragment.RecentFragment;
 import me.aap.fermata.ui.fragment.SettingsFragment;
 import me.aap.fermata.ui.fragment.SubtitlesFragment;
+import me.aap.fermata.ui.policy.BackNavigationPolicy;
+import me.aap.fermata.ui.policy.ItemRoutePolicy;
+import me.aap.fermata.ui.policy.PlaybackLayoutPolicy;
 import me.aap.fermata.ui.view.BodyLayout;
 import me.aap.fermata.ui.view.ControlPanelView;
-import me.aap.fermata.ui.view.MediaItemListView;
 import me.aap.fermata.ui.view.VideoView;
 import me.aap.utils.app.App;
 import me.aap.utils.async.FutureSupplier;
@@ -635,8 +637,12 @@ public class MainActivityDelegate extends ActivityDelegate
 	}
 
 	public void setVideoMode(boolean videoMode, @Nullable VideoView v) {
-		if (videoMode == this.videoMode) return;
 		ControlPanelView cp = getControlPanel();
+
+		if (videoMode == this.videoMode) {
+			if (videoMode && (cp != null)) cp.enableVideoMode(v);
+			return;
+		}
 
 		if (videoMode) {
 			this.videoMode = true;
@@ -745,8 +751,41 @@ public class MainActivityDelegate extends ActivityDelegate
 	@Override
 	public ActivityFragment showFragment(int id, Object input) {
 		BodyLayout b = getBody();
-		if (b.isVideoMode()) b.setMode(isCarActivity() ? BodyLayout.Mode.FRAME : BodyLayout.Mode.BOTH);
+		if (b.isVideoMode()) b.setMode(PlaybackLayoutPolicy.getModeAfterLeavingVideo(isCarActivity()));
 		return super.showFragment(id, input);
+	}
+
+	public boolean showFragmentWhenReady(int id) {
+		return showFragmentWhenReady(id, null);
+	}
+
+	public boolean showFragmentWhenReady(int id, @Nullable Object input) {
+		AddonManager mgr = FermataApplication.get().getAddonManager();
+		AddonInfo info = mgr.getAddonInfo(id);
+		if ((info == null) || !info.hasFragment) {
+			showFragment(id, input);
+			return true;
+		}
+
+		AddonState state = mgr.getAddonState(info);
+		if (state == AddonState.LOADED) {
+			showFragment(id, input);
+			return true;
+		}
+		if (state == AddonState.DISABLED) {
+			showAlert(getContext(), R.string.dashboard_addon_disabled_sub);
+			return false;
+		}
+
+		FutureSupplier<FermataAddon> loading = mgr.getOrInstallAddon(info.className).main(getHandler());
+		setContentLoading(loading);
+		loading.onSuccess(addon -> showFragment(id, input)).onFailure(err -> {
+			if (!isCancellation(err)) {
+				String msg = err.getLocalizedMessage();
+				showAlert(getContext(), (msg != null) ? msg : err.toString());
+			}
+		});
+		return true;
 	}
 
 	protected ActivityFragment createFragment(int id) {
@@ -805,41 +844,7 @@ public class MainActivityDelegate extends ActivityDelegate
 	}
 
 	public void onPlayerBackPressed() {
-		ActivityFragment f = getActiveFragment();
-		BodyLayout b = getBody();
-
-		if (b.isBothMode()) {
-			if ((f != null) && f.onBackPressed()) {
-				showAutoTopBackButton();
-				return;
-			}
-
-			showDashboard();
-			return;
-		}
-
-		if ((f != null) && !(f instanceof MediaLibFragment) && f.onBackPressed()) return;
-
-		if (b.isVideoMode()) {
-			b.setMode(BodyLayout.Mode.BOTH);
-			if (AUTO) setBarsHidden(false);
-			if (isCarActivity()) post(() -> {
-				MediaItemListView.focusActive(getContext(), null);
-				showAutoTopBackButton();
-			});
-			return;
-		}
-
-		PlayableItem pi = getMediaServiceBinder().getCurrentItem();
-		if ((pi != null) && !pi.isVideo() && goToItem(pi)) return;
-
-		onBackPressed();
-	}
-
-	private void showAutoTopBackButton() {
-		if (!AUTO) return;
-		View back = getToolBar().findViewById(me.aap.utils.R.id.tool_bar_back_button);
-		if (back != null) back.setVisibility(VISIBLE);
+		BackNavigationPolicy.handlePlayerBack(this);
 	}
 
 	public FutureSupplier<Item> goToItem(String id) {
@@ -848,30 +853,14 @@ public class MainActivityDelegate extends ActivityDelegate
 
 	public boolean goToItem(Item i) {
 		if (i == null) return false;
-		BrowsableItem root = i.getRoot();
+		int fragmentId = ItemRoutePolicy.getFragmentId(i);
 
-		if (root instanceof MediaLib.Folders) {
-			showFragment(R.id.folders_fragment);
-		} else if (root instanceof MediaLib.Favorites) {
-			showFragment(R.id.favorites_fragment);
-		} else if (root instanceof MediaLib.Recent) {
-			showFragment(R.id.recent_fragment);
-		} else if (root instanceof MediaLib.Playlists) {
-			showFragment(R.id.playlists_fragment);
-		} else if (root instanceof ExtRoot) {
-			if ("youtube".equals(root.getId())) {
-				showFragment(R.id.youtube_fragment);
-				return true;
-			}
-		} else {
-			MediaLibAddon a = AddonManager.get().getMediaLibAddon(root);
-			if (a != null) {
-				showFragment(a.getFragmentId());
-			} else {
-				Log.d("Unsupported item: ", i);
-				return false;
-			}
+		if (fragmentId == 0) {
+			Log.d("Unsupported item: ", i);
+			return false;
 		}
+
+		showFragment(fragmentId);
 
 		FermataApplication.get().getHandler().post(() -> {
 			ActivityFragment f = getActiveFragment();
@@ -895,33 +884,7 @@ public class MainActivityDelegate extends ActivityDelegate
 			return;
 		}
 
-		OverlayMenu menu = getActiveMenu();
-		if (menu != null) {
-			if (menu.back()) return;
-			else if (hideActiveMenu()) return;
-		}
-
-		ToolBarView tb = getToolBar();
-		if ((tb != null) && tb.onBackPressed()) return;
-
-		ActivityFragment f = getActiveFragment();
-		if (f != null) {
-			if (f.onBackPressed()) return;
-
-			int navId = getActiveNavItemId();
-			if ((f.getFragmentId() != navId) && (navId != ID_NULL)) {
-				showFragment(navId);
-				return;
-			}
-
-			if (!(f instanceof DashboardFragment) || (getActiveNavItemId() != R.id.dashboard_fragment) ||
-					!f.isRootPage()) {
-				showDashboard();
-				return;
-			}
-		}
-
-		finish();
+		BackNavigationPolicy.handleAutoActivityBack(this);
 	}
 
 	@Override

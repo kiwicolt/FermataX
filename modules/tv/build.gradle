@@ -10,8 +10,10 @@ ext {
     addons = [
             [
                     name : 'tv',
+                    id   : 'tv_fragment',
                     icon : 'tv',
                     class: 'me.aap.fermata.addon.tv.TvAddon',
+                    fragment: true,
                     order: 1
             ]
     ]

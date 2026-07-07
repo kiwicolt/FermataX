@@ -32,6 +32,7 @@ import me.aap.fermata.media.lib.MediaLib.StreamItem;
 import me.aap.fermata.media.pref.BrowsableItemPrefs;
 import me.aap.fermata.ui.activity.MainActivityDelegate;
 import me.aap.fermata.ui.activity.MainActivityPrefs;
+import me.aap.fermata.ui.policy.ChromePolicy;
 import me.aap.fermata.ui.view.ControlPanelView;
 import me.aap.fermata.ui.view.MediaItemListView;
 import me.aap.utils.ui.activity.ActivityDelegate;
@@ -324,6 +325,6 @@ public class ToolBarMediator implements ToolBarView.Mediator.BackTitleFilter {
 		}
 
 		MainActivityDelegate a = MainActivityDelegate.get(f.requireContext());
-		return (a.getBody().isVideoMode() || (f instanceof DashboardFragment)) ? GONE : VISIBLE;
+		return ChromePolicy.getAutoTopBackVisibility(a, f);
 	}
 }

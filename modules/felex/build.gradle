@@ -10,8 +10,10 @@ ext {
     addons = [
             [
                     name : 'felex',
+                    id   : 'felex_fragment',
                     icon : 'felex',
                     class: 'me.aap.fermata.addon.felex.FelexAddon',
+                    fragment: true,
                     order: 4
             ]
     ]

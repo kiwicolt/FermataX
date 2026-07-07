@@ -17,13 +17,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import me.aap.fermata.BuildConfig;
 import me.aap.fermata.FermataApplication;
 import me.aap.fermata.R;
 import me.aap.fermata.addon.AddonInfo;
 import me.aap.fermata.addon.AddonManager;
+import me.aap.fermata.addon.AddonState;
 import me.aap.fermata.addon.FermataAddon;
-import me.aap.fermata.addon.FermataFragmentAddon;
 import me.aap.utils.function.Supplier;
 import me.aap.utils.log.Log;
 import me.aap.utils.pref.PreferenceStore;
@@ -151,10 +150,8 @@ public final class DashboardItems {
 		if (id == R.id.playlists_fragment) return PLAYLISTS;
 		if (id == R.id.menu) return MENU;
 
-		AddonManager amgr = AddonManager.get();
-		for (AddonInfo ai : BuildConfig.ADDONS) {
-			FermataAddon a = amgr.getAddon(ai.className);
-			if ((a instanceof FermataFragmentAddon) && (a.getAddonId() == id)) return ai.className;
+		for (AddonInfo ai : AddonManager.get().getAddonInfos()) {
+			if (ai.hasFragment && (ai.addonId == id)) return ai.className;
 		}
 
 		Log.e("Unknown DashboardItem id: ", id);
@@ -181,10 +178,9 @@ public final class DashboardItems {
 				return new NavItem(name, R.id.menu, me.aap.utils.R.drawable.menu, R.string.menu);
 		}
 
-		FermataAddon addon = AddonManager.get().getAddon(name);
-		if (addon instanceof FermataFragmentAddon) {
-			AddonInfo info = addon.getInfo();
-			return new NavItem(name, addon.getAddonId(), info.icon, info.addonName);
+		AddonInfo info = findAddonInfo(name);
+		if (isFragmentAddon(info, false)) {
+			return new NavItem(name, info.addonId, info.icon, info.addonName);
 		}
 
 		Log.e("Unknown NavBarItem name: ", name);
@@ -198,7 +194,7 @@ public final class DashboardItems {
 	@NonNull
 	private static List<String> getLayout(PreferenceStore store, boolean includeDashboard,
 																				boolean includeMenu, boolean includeDisabled) {
-		LinkedHashSet<String> names = new LinkedHashSet<>(BuildConfig.ADDONS.length + 5);
+		LinkedHashSet<String> names = new LinkedHashSet<>();
 		String[] pref = store.getStringArrayPref(PREF);
 
 		if (includeDashboard) names.add(DASHBOARD);
@@ -214,7 +210,7 @@ public final class DashboardItems {
 		addMissingItem(names, RECENT, FAVORITES);
 		addMissingItem(names, PLAYLISTS, RECENT);
 
-		for (AddonInfo ai : BuildConfig.ADDONS) {
+		for (AddonInfo ai : AddonManager.get().getAddonInfos()) {
 			if (isFragmentAddon(ai, includeDisabled)) names.add(ai.className);
 		}
 
@@ -243,24 +239,17 @@ public final class DashboardItems {
 		if (FOLDERS.equals(name) || FAVORITES.equals(name) || RECENT.equals(name) ||
 				PLAYLISTS.equals(name)) return true;
 
-		for (AddonInfo ai : BuildConfig.ADDONS) {
+		for (AddonInfo ai : AddonManager.get().getAddonInfos()) {
 			if (ai.className.equals(name)) return isFragmentAddon(ai, includeDisabled);
 		}
 		return false;
 	}
 
 	private static boolean isFragmentAddon(AddonInfo ai, boolean includeDisabled) {
-		if (!BuildConfig.AUTO && ai.isAuto) return false;
-
-		FermataAddon addon = AddonManager.get().getAddon(ai.className);
-		if (addon instanceof FermataFragmentAddon) return true;
-		if (!includeDisabled) return false;
-
-		try {
-			return FermataFragmentAddon.class.isAssignableFrom(Class.forName(ai.className));
-		} catch (Exception ignore) {
-			return false;
-		}
+		if (ai == null) return false;
+		if (!ai.hasFragment) return false;
+		AddonState state = AddonManager.get().getAddonState(ai);
+		return includeDisabled || (state != AddonState.DISABLED);
 	}
 
 	@Nullable
@@ -286,25 +275,34 @@ public final class DashboardItems {
 						ctx.getString(R.string.menu), ctx.getString(R.string.dashboard_menu_sub), null);
 		}
 
-		AddonInfo info;
-		try {
-			info = FermataAddon.findAddonInfo(name);
-		} catch (RuntimeException ex) {
-			return null;
+		AddonInfo info = findAddonInfo(name);
+		if (info == null) return null;
+
+		AddonState state = AddonManager.get().getAddonState(info);
+		if (isFragmentAddon(info, false)) {
+			String subtitle = ((state == AddonState.LOADING) || (state == AddonState.ENABLED_PENDING)) ?
+					ctx.getString(R.string.loading) : getAddonSubtitle(ctx, name);
+			return new Item(name, info.addonId, info.icon, getAddonTitle(ctx, name, info),
+					subtitle, info);
+		}
+
+		if (includeDisabled && isFragmentAddon(info, true)) {
+			return new Item(name, ID_NULL, info.icon, getAddonTitle(ctx, name, info),
+					ctx.getString(R.string.dashboard_addon_disabled_sub), info);
 		}
 
 		FermataAddon addon = AddonManager.get().getAddon(name);
-		if (addon instanceof FermataFragmentAddon) {
+		if ((addon != null) && includeDisabled) {
 			return new Item(name, addon.getAddonId(), info.icon, getAddonTitle(ctx, name, info),
 					getAddonSubtitle(ctx, name), info);
 		}
 
-		if (includeDisabled && isFragmentAddon(info, true)) {
-			return new Item(name, ID_NULL, info.icon, ctx.getString(info.addonName),
-					ctx.getString(R.string.dashboard_addon_disabled_sub), info);
-		}
-
 		return null;
+	}
+
+	@Nullable
+	private static AddonInfo findAddonInfo(String name) {
+		return AddonManager.get().getAddonInfo(name);
 	}
 
 	private static String getAddonSubtitle(Context ctx, String className) {

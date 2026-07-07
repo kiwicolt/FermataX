@@ -27,6 +27,7 @@ import me.aap.fermata.R;
 import me.aap.fermata.addon.AddonInfo;
 import me.aap.fermata.addon.AddonManager;
 import me.aap.fermata.ui.activity.MainActivityDelegate;
+import me.aap.fermata.ui.policy.PlaybackLayoutPolicy;
 import me.aap.fermata.ui.view.BodyLayout;
 import me.aap.fermata.ui.view.ControlPanelView;
 import me.aap.fermata.ui.view.MediaItemListView;
@@ -132,7 +133,8 @@ public class NavBarMediator extends PrefNavBarMediator
 		} else if (id == R.id.dashboard_fragment) {
 			MainActivityDelegate.get(item.getContext()).showDashboard();
 		} else {
-			super.itemSelected(item, id, a);
+			MainActivityDelegate ma = MainActivityDelegate.get(item.getContext());
+			if (ma.showFragmentWhenReady(id)) ma.setActiveNavItemId(id);
 		}
 	}
 
@@ -156,8 +158,8 @@ public class NavBarMediator extends PrefNavBarMediator
 	@Override
 	public void itemReselected(View item, int id, ActivityDelegate a) {
 		BodyLayout b = ((MainActivityDelegate) a).getBody();
-		if (b.isVideoMode()) b.setMode(((MainActivityDelegate) a).isCarActivity() ?
-				BodyLayout.Mode.FRAME : BodyLayout.Mode.BOTH);
+		if (b.isVideoMode()) b.setMode(PlaybackLayoutPolicy.getModeAfterLeavingVideo(
+				((MainActivityDelegate) a).isCarActivity()));
 		else super.itemReselected(item, id, a);
 	}
 

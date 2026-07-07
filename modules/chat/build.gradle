@@ -11,8 +11,10 @@ ext {
     addons = [
             [
                     name : 'chat',
+                    id   : 'chat_addon',
                     icon : 'chat',
                     class: 'me.aap.fermata.addon.chat.ChatAddon',
+                    fragment: true,
                     order: 5
             ]
     ]
