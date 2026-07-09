@@ -4,7 +4,7 @@
     <string name="open_dashboard">فتح لوحة التحكم</string>
     <string name="dashboard_order">ترتيب لوحة التحكم</string>
     <string name="reset_dashboard_order">إعادة ترتيب لوحة التحكم</string>
-    <string name="dashboard_order_sub">يتحكم أيضًا في ترتيب شريط التنقل السفلي</string>
+    <string name="dashboard_order_sub">يتحكم أيضًا في ترتيب شريط التنقل</string>
     <string name="dashboard_now_playing">يتم التشغيل الآن</string>
     <string name="dashboard_continue">متابعة المشاهدة</string>
     <string name="dashboard_continue_sub">%1$s - %2$s</string>
@@ -76,7 +76,6 @@
 
     <string name="nav_bar_pos">موضع شريط التنقل</string>
     <string name="nav_bar_pos_sub">عرض ايقونات التنقل على الجهة:</string>
-    <string name="nav_bar_pos_bottom">أسفل</string>
     <string name="nav_bar_pos_left">يسار</string>
     <string name="nav_bar_pos_right">يمين</string>
 
@@ -84,7 +83,7 @@
     <string name="lang">اللغة</string>
     <string name="trans_lang">لغة الترجمة</string>
     <string name="hide_bars">إخفاء الأشرطة</string>
-    <string name="hide_bars_sub">إخفاء الأشرطة العلوية والسفلية عند ظهور لوحة التحكم</string>
+    <string name="hide_bars_sub">إخفاء أشرطة التطبيق عند ظهور لوحة التحكم</string>
     <string name="show_pg_up_down">إظهار أزرار الصفحة لأعلى/لأسفل</string>
     <string name="use_dpad_cursor">استخدم المؤشر للتنقل</string>
     <string name="fullscreen_mode">وضع ملء الشاشة</string>

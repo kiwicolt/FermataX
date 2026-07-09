@@ -4,7 +4,7 @@
     <string name="open_dashboard">បើកផ្ទាំងគ្រប់គ្រង</string>
     <string name="dashboard_order">លំដាប់ផ្ទាំងគ្រប់គ្រង</string>
     <string name="reset_dashboard_order">កំណត់លំដាប់ផ្ទាំងគ្រប់គ្រងឡើងវិញ</string>
-    <string name="dashboard_order_sub">ក៏គ្រប់គ្រងលំដាប់របាររុករកខាងក្រោម</string>
+    <string name="dashboard_order_sub">ក៏គ្រប់គ្រងលំដាប់របាររុករក</string>
     <string name="dashboard_now_playing">កំពុងចាក់</string>
     <string name="dashboard_continue">បន្តមើល</string>
     <string name="dashboard_continue_sub">%1$s - %2$s</string>
@@ -76,7 +76,6 @@
 
     <string name="nav_bar_pos">ទីតាំង Navbar</string>
     <string name="nav_bar_pos_sub">ទីតាំងបច្ចុប្បន្ន៖ %1$s</string>
-    <string name="nav_bar_pos_bottom">បាត</string>
     <string name="nav_bar_pos_left">ឆ្វេង</string>
     <string name="nav_bar_pos_right">ស្តាំ</string>
 
@@ -84,7 +83,7 @@
     <string name="lang">ភាសា</string>
     <string name="trans_lang">ភាសាបកប្រែ</string>
     <string name="hide_bars">លាក់​របារ</string>
-    <string name="hide_bars_sub">លាក់របារខាងលើ និងខាងក្រោម នៅពេលផ្ទាំងបញ្ជាលេចឡើង</string>
+    <string name="hide_bars_sub">លាក់របារកម្មវិធី នៅពេលផ្ទាំងបញ្ជាលេចឡើង</string>
     <string name="show_pg_up_down">បង្ហាញទំព័រឡើង/ចុះក្រោម</string>
     <string name="use_dpad_cursor">ប្រើទស្សន៍ទ្រនិចសម្រាប់ការរុករក D-pad</string>
     <string name="fullscreen_mode">របៀបពេញអេក្រង់</string>

@@ -4,7 +4,7 @@
     <string name="open_dashboard">Deschide panoul</string>
     <string name="dashboard_order">Ordinea panoului</string>
     <string name="reset_dashboard_order">Resetează ordinea panoului</string>
-    <string name="dashboard_order_sub">Controlează și ordinea navigării de jos</string>
+    <string name="dashboard_order_sub">Controlează și ordinea navigării</string>
     <string name="dashboard_now_playing">Redare acum</string>
     <string name="dashboard_continue">Continuă vizionarea</string>
     <string name="dashboard_continue_sub">%1$s - %2$s</string>
@@ -76,7 +76,6 @@
 
     <string name="nav_bar_pos">Poziția barei de navigare</string>
     <string name="nav_bar_pos_sub">Poziția curentă: %1$s</string>
-    <string name="nav_bar_pos_bottom">Jos</string>
     <string name="nav_bar_pos_left">Stânga</string>
     <string name="nav_bar_pos_right">Drepta</string>
 
@@ -84,7 +83,7 @@
     <string name="lang">Limbă</string>
     <string name="trans_lang">Limba de traducere</string>
     <string name="hide_bars">Ascunde barele</string>
-    <string name="hide_bars_sub">Ascunde barele de sus și de jos când apare panoul de control</string>
+    <string name="hide_bars_sub">Ascunde barele aplicației când apare panoul de control</string>
     <string name="show_pg_up_down">Arată butoanele sus/jos ale paginii</string>
     <string name="use_dpad_cursor">Utilizează cursorul pentru navigarea D-pad</string>
     <string name="fullscreen_mode">Modul Ecran complet</string>

@@ -88,6 +88,7 @@ import me.aap.utils.pref.PreferenceView;
 import me.aap.utils.pref.PreferenceViewAdapter;
 import me.aap.utils.ui.UiUtils;
 import me.aap.utils.ui.fragment.FilePickerFragment;
+import me.aap.utils.ui.view.NavBarView;
 import me.aap.utils.vfs.local.LocalFileSystem;
 
 /**
@@ -688,6 +689,7 @@ public class SettingsFragment extends MainActivityFragment
 														Pref<IntSupplier> nbPos, Pref<DoubleSupplier> nbSize,
 														Pref<DoubleSupplier> tbSize, Pref<DoubleSupplier> cpSize,
 														Pref<DoubleSupplier> textIconSize) {
+		normalizeNavBarPos(a.getPrefs(), nbPos);
 		ps.addListPref(o -> {
 			o.store = a.getPrefs();
 			o.pref = theme;
@@ -727,8 +729,8 @@ public class SettingsFragment extends MainActivityFragment
 			o.title = R.string.nav_bar_pos;
 			o.subtitle = R.string.nav_bar_pos_sub;
 			o.formatSubtitle = true;
-			o.values = new int[]{R.string.nav_bar_pos_bottom, R.string.nav_bar_pos_left,
-					R.string.nav_bar_pos_right};
+			o.values = new int[]{R.string.nav_bar_pos_left, R.string.nav_bar_pos_right};
+			o.valuesMap = new int[]{NavBarView.POSITION_LEFT, NavBarView.POSITION_RIGHT};
 		});
 		ps.addFloatPref(o -> {
 			o.store = a.getPrefs();
@@ -762,6 +764,12 @@ public class SettingsFragment extends MainActivityFragment
 			o.seekMin = 10;
 			o.seekMax = 40;
 		});
+	}
+
+	private static void normalizeNavBarPos(PreferenceStore store, Pref<IntSupplier> pref) {
+		int pos = store.getIntPref(pref);
+		if ((pos == NavBarView.POSITION_LEFT) || (pos == NavBarView.POSITION_RIGHT)) return;
+		store.applyIntPref(pref, NavBarView.POSITION_LEFT);
 	}
 
 	private void addDashboard(MainActivityDelegate a, PreferenceSet set) {

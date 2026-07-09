@@ -4,7 +4,7 @@
     <string name="open_dashboard">開啟儀表板</string>
     <string name="dashboard_order">儀表板順序</string>
     <string name="reset_dashboard_order">重設儀表板順序</string>
-    <string name="dashboard_order_sub">也控制底部導覽順序</string>
+    <string name="dashboard_order_sub">也控制導覽順序</string>
     <string name="dashboard_now_playing">正在播放</string>
     <string name="dashboard_continue">繼續觀看</string>
     <string name="dashboard_continue_sub">%1$s - %2$s</string>
@@ -81,7 +81,6 @@
 
     <string name="nav_bar_pos">選單位置</string>
     <string name="nav_bar_pos_sub">目前位置: %1$s</string>
-    <string name="nav_bar_pos_bottom">下</string>
     <string name="nav_bar_pos_left">左</string>
     <string name="nav_bar_pos_right">右</string>
 
@@ -89,7 +88,7 @@
     <string name="lang">語言</string>
     <string name="trans_lang">翻譯語言</string>
     <string name="hide_bars">隱藏工具列</string>
-    <string name="hide_bars_sub">控制面板出現時隱藏工具列</string>
+    <string name="hide_bars_sub">控制面板出現時隱藏應用程式列</string>
     <string name="show_pg_up_down">顯示上移/下移按鈕</string>
     <string name="use_dpad_cursor">使用方向鍵瀏覽游標</string>
     <string name="fullscreen_mode">全螢幕模式</string>

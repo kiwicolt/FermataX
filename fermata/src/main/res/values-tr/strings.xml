@@ -4,7 +4,7 @@
     <string name="open_dashboard">Panoyu aç</string>
     <string name="dashboard_order">Pano sırası</string>
     <string name="reset_dashboard_order">Pano sırasını sıfırla</string>
-    <string name="dashboard_order_sub">Alt gezinme sırasını da kontrol eder</string>
+    <string name="dashboard_order_sub">Gezinme sırasını da kontrol eder</string>
     <string name="dashboard_now_playing">Şimdi oynatılıyor</string>
     <string name="dashboard_continue">İzlemeye devam et</string>
     <string name="dashboard_continue_sub">%1$s - %2$s</string>
@@ -76,7 +76,6 @@
 
     <string name="nav_bar_pos">Gezinme çubuğu konumu</string>
     <string name="nav_bar_pos_sub">Mevcut konum: %1$s</string>
-    <string name="nav_bar_pos_bottom">Altta</string>
     <string name="nav_bar_pos_left">Solda</string>
     <string name="nav_bar_pos_right">Sağda</string>
 
@@ -84,7 +83,7 @@
     <string name="lang">Diller</string>
     <string name="trans_lang">Çeviri dili</string>
     <string name="hide_bars">Çubukları gizle</string>
-    <string name="hide_bars_sub">Kontrol paneli göründüğünde üst ve alt çubukları gizleyin</string>
+    <string name="hide_bars_sub">Kontrol paneli göründüğünde uygulama çubuklarını gizle</string>
     <string name="show_pg_up_down">Sayfa yukarı/aşağı düğmeleri göster</string>
     <string name="use_dpad_cursor">D-pad navigasyonu için imleci kullanın</string>
     <string name="fullscreen_mode">Tam ekran modu</string>

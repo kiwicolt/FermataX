@@ -4,6 +4,7 @@ import static me.aap.fermata.BuildConfig.AUTO;
 import static me.aap.utils.ui.UiUtils.ID_NULL;
 
 import me.aap.fermata.R;
+import me.aap.fermata.media.engine.MediaEngine;
 import me.aap.fermata.media.lib.MediaLib.PlayableItem;
 import me.aap.fermata.ui.activity.MainActivityDelegate;
 import me.aap.fermata.ui.fragment.DashboardFragment;
@@ -34,20 +35,37 @@ public final class BackNavigationPolicy {
 
 		if ((f != null) && !(f instanceof MediaLibFragment) && f.onBackPressed()) return;
 
-		if (b.isVideoMode()) {
-			b.setMode(BodyLayout.Mode.BOTH);
-			if (AUTO) a.setBarsHidden(false);
-			if (a.isCarActivity()) a.post(() -> {
+		if (leaveVideoMode(a)) return;
+
+		if (goToAudioSource(a)) return;
+
+		a.onBackPressed();
+	}
+
+	private static boolean goToAudioSource(MainActivityDelegate a) {
+		MediaEngine eng = a.getMediaServiceBinder().getCurrentEngine();
+		PlayableItem pi = (eng == null) ? null : eng.getSource();
+		if ((pi != null) && !pi.isVideo() && a.goToItem(pi)) return true;
+
+		pi = a.getMediaServiceBinder().getCurrentItem();
+		return (pi != null) && !pi.isVideo() && a.goToItem(pi);
+	}
+
+	public static boolean leaveVideoMode(MainActivityDelegate a) {
+		BodyLayout b = a.getBody();
+		if (!b.isVideoMode()) return false;
+
+		b.setMode(BodyLayout.Mode.BOTH);
+		if (AUTO) a.setBarsHidden(false);
+		if (a.isCarActivity()) {
+			a.post(() -> {
 				MediaItemListView.focusActive(a.getContext(), null);
 				ChromePolicy.refreshAutoTopBackButton(a);
 			});
-			return;
+		} else {
+			ChromePolicy.refreshAutoTopBackButton(a);
 		}
-
-		PlayableItem pi = a.getMediaServiceBinder().getCurrentItem();
-		if ((pi != null) && !pi.isVideo() && a.goToItem(pi)) return;
-
-		a.onBackPressed();
+		return true;
 	}
 
 	public static void handleAutoActivityBack(MainActivityDelegate a) {

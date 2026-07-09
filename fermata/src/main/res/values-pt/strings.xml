@@ -4,7 +4,7 @@
     <string name="open_dashboard">Abrir painel</string>
     <string name="dashboard_order">Ordem do painel</string>
     <string name="reset_dashboard_order">Redefinir ordem do painel</string>
-    <string name="dashboard_order_sub">Também controla a ordem da navegação inferior</string>
+    <string name="dashboard_order_sub">Também controla a ordem da navegação</string>
     <string name="dashboard_now_playing">Reproduzindo agora</string>
     <string name="dashboard_continue">Continuar assistindo</string>
     <string name="dashboard_continue_sub">%1$s - %2$s</string>
@@ -81,7 +81,6 @@
 
     <string name="nav_bar_pos">Posição da Barra de Navegação</string>
     <string name="nav_bar_pos_sub">Posição Atual: %1$s</string>
-    <string name="nav_bar_pos_bottom">Botão</string>
     <string name="nav_bar_pos_left">Esquerda</string>
     <string name="nav_bar_pos_right">Direita</string>
 
@@ -89,7 +88,7 @@
     <string name="lang">Idioma</string>
     <string name="trans_lang">Idioma de tradução</string>
     <string name="hide_bars">Escoder Barras</string>
-    <string name="hide_bars_sub">Hide top and bottom bars when the control panel appears</string>
+    <string name="hide_bars_sub">Ocultar as barras do app quando o painel de controle aparecer</string>
     <string name="show_pg_up_down">Show page up/down buttons</string>
     <string name="use_dpad_cursor">Use cursor for D-pad navigation</string>
     <string name="fullscreen_mode">Modo Ecrã Completo</string>

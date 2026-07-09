@@ -4,7 +4,7 @@
     <string name="open_dashboard">Otwórz panel</string>
     <string name="dashboard_order">Kolejność panelu</string>
     <string name="reset_dashboard_order">Resetuj kolejność panelu</string>
-    <string name="dashboard_order_sub">Steruje też kolejnością dolnej nawigacji</string>
+    <string name="dashboard_order_sub">Steruje też kolejnością nawigacji</string>
     <string name="dashboard_now_playing">Teraz odtwarzane</string>
     <string name="dashboard_continue">Oglądaj dalej</string>
     <string name="dashboard_continue_sub">%1$s - %2$s</string>
@@ -76,7 +76,6 @@
 
     <string name="nav_bar_pos">Pozycja paska nawigacyjnego</string>
     <string name="nav_bar_pos_sub">Aktualna pozycja: %1$s</string>
-    <string name="nav_bar_pos_bottom">Na dole</string>
     <string name="nav_bar_pos_left">Z lewej strony</string>
     <string name="nav_bar_pos_right">Z prawej strony</string>
 
@@ -84,7 +83,7 @@
     <string name="lang">Język</string>
     <string name="trans_lang">Język tłumaczeniowy</string>
     <string name="hide_bars">Ukryj paski</string>
-    <string name="hide_bars_sub">Ukryj górny i dolny pasek, gdy pojawi się panel sterowania</string>
+    <string name="hide_bars_sub">Ukryj paski aplikacji, gdy pojawi się panel sterowania</string>
     <string name="show_pg_up_down">Pokaż przyciski góra/dół na stronie</string>
     <string name="use_dpad_cursor">Użyj kursora do nawigacji za pomocą pada kierunkowego</string>
     <string name="fullscreen_mode">Tryb pełnoekranowy</string>

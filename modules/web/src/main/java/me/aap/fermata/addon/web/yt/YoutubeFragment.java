@@ -3,6 +3,7 @@ package me.aap.fermata.addon.web.yt;
 import static me.aap.fermata.util.Utils.dynCtx;
 import static android.view.View.GONE;
 import static android.view.View.VISIBLE;
+import static me.aap.utils.ui.activity.ActivityListener.FRAGMENT_CHANGED;
 
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -131,12 +132,19 @@ public class YoutubeFragment extends WebBrowserFragment implements FermataServic
 	@Override
 	protected void registerListeners(MainActivityDelegate a) {
 		super.registerListeners(a);
+		a.addBroadcastListener(this, FRAGMENT_CHANGED);
 		a.getMediaServiceBinder().addBroadcastListener(this);
 	}
 
 	protected void unregisterListeners(MainActivityDelegate a) {
 		super.unregisterListeners(a);
 		a.getMediaServiceBinder().removeBroadcastListener(this);
+	}
+
+	@Override
+	public void onActivityEvent(MainActivityDelegate a, long e) {
+		super.onActivityEvent(a, e);
+		if ((e == FRAGMENT_CHANGED) && (a.getActiveFragment() == this)) syncPlaybackStateSoon();
 	}
 
 	@Override
@@ -158,7 +166,11 @@ public class YoutubeFragment extends WebBrowserFragment implements FermataServic
 	@Override
 	public void onResume() {
 		super.onResume();
-		if (BuildConfig.AUTO || !playOnResume) return;
+		if (BuildConfig.AUTO) {
+			syncPlaybackStateSoon();
+			return;
+		}
+		if (!playOnResume) return;
 		playOnResume = false;
 		MainActivityDelegate.getActivityDelegate(getContext()).onSuccess(a -> {
 			FermataServiceUiBinder b = a.getMediaServiceBinder();
@@ -166,6 +178,19 @@ public class YoutubeFragment extends WebBrowserFragment implements FermataServic
 				b.getMediaSessionCallback().onPlay();
 			}
 		});
+	}
+
+	@Override
+	public void onHiddenChanged(boolean hidden) {
+		super.onHiddenChanged(hidden);
+		if (!hidden && BuildConfig.AUTO) syncPlaybackStateSoon();
+	}
+
+	private void syncPlaybackStateSoon() {
+		YoutubeWebView v = getWebView();
+		if (v == null) return;
+		v.post(v::syncPlaybackState);
+		v.postDelayed(v::syncPlaybackState, 600L);
 	}
 
 	public void loadUrl(String url) {
@@ -179,7 +204,6 @@ public class YoutubeFragment extends WebBrowserFragment implements FermataServic
 
 		if (YoutubeMediaEngine.isYoutubeItem(newItem)) {
 			FermataWebView v = getWebView();
-			MainActivityDelegate a = MainActivityDelegate.get(getContext());
 			if (v == null) return;
 
 			FermataChromeClient chrome = v.getWebChromeClient();
@@ -225,6 +249,11 @@ public class YoutubeFragment extends WebBrowserFragment implements FermataServic
 	@Override
 	protected String getSearchUrl() {
 		return "https://www.youtube.com/results?search_query=";
+	}
+
+	@Override
+	protected boolean shouldRestoreFullScreenOnResume() {
+		return false;
 	}
 
 	private static final class YoutubeToolBarMediator implements ToolBarView.Mediator.BackTitle {

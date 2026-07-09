@@ -276,10 +276,31 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback
 	}
 
 	public void setEngine(MediaEngine engine) {
-		if (this.engine == engine) return;
+		switchEngine(engine);
+	}
+
+	public boolean startExternalPlayback(@NonNull MediaEngine engine) {
+		switchEngine(engine);
+
+		if (!engine.requestAudioFocus(audioManager, audioFocusReq)) {
+			Log.i("Audio focus request failed");
+			onStop(false);
+			return false;
+		}
+
+		onEngineStarted(engine);
+		return true;
+	}
+
+	private void switchEngine(@NonNull MediaEngine engine) {
+		if (this.engine == engine) {
+			session.setActive(true);
+			return;
+		}
 		playerTask.cancel();
-		onStop();
+		onStop(false);
 		this.engine = engine;
+		session.setActive(true);
 	}
 
 	@Nullable
@@ -426,6 +447,11 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback
 	public void onPrepare() {
 		playerTask.cancel();
 		playerTask = prepare();
+	}
+
+	public void prepareIfIdle() {
+		if ((getCurrentItem() != null) || !playerTask.isDone()) return;
+		onPrepare();
 	}
 
 	private FutureSupplier<Void> prepare() {
@@ -580,6 +606,8 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback
 	}
 
 	private FutureSupplier<?> onStop(MediaEngine eng, long pos) {
+		boolean current = eng == engine;
+
 		if (eng != null) {
 			if (pos != -1) {
 				PlayableItem i = eng.getSource();
@@ -589,10 +617,10 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback
 			eng.stop();
 			eng.releaseAudioFocus(audioManager, audioFocusReq);
 			eng.close();
-			if (eng == engine) engine = null;
+			if (current) engine = null;
 		}
 
-		stopped();
+		if (current || (eng == null)) stopped();
 		return completedVoid();
 	}
 
@@ -874,6 +902,7 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback
 
 	@Override
 	public void onEngineBuffering(MediaEngine engine, int percent) {
+		if (engine != getEngine()) return;
 		if (isPlaying()) return;
 		PlaybackStateCompat state = new PlaybackStateCompat.Builder().setActions(SUPPORTED_ACTIONS)
 				.setState(STATE_BUFFERING, 0, 1.0f).build();
@@ -882,12 +911,14 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback
 
 	@Override
 	public void onEnginePrepared(MediaEngine engine) {
+		if (engine != getEngine()) return;
 		playerTask.cancel();
 		PlayableItem i = engine.getSource();
 		if (i != null) onEnginePrepared(engine, i);
 	}
 
 	private void onEnginePrepared(MediaEngine engine, PlayableItem i) {
+		if (engine != getEngine()) return;
 		long pos = lib.getLastPlayedPosition(i);
 
 		if (pos > 0) {
@@ -919,12 +950,17 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback
 
 	@Override
 	public void onEngineStarted(MediaEngine engine) {
+		if (engine != getEngine()) return;
 		engine.getPosition().and(engine.getSpeed()).main()
-				.onSuccess(h -> setPlayingState(engine, true, h.value1, h.value2));
+				.onSuccess(h -> {
+					if (engine == getEngine()) setPlayingState(engine, true, h.value1, h.value2);
+				});
 	}
 
 	private void setPlayingState(MediaEngine engine, boolean playing, long pos, float speed) {
+		if (engine != getEngine()) return;
 		PlayableItem i = engine.getSource();
+		if (i == null) return;
 		BrowsableItemPrefs prefs = i.getParent().getPrefs();
 		int shuffle = prefs.getShufflePref() ? SHUFFLE_MODE_ALL : SHUFFLE_MODE_NONE;
 		int repeat;
@@ -1020,6 +1056,7 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback
 
 	@Override
 	public void onEngineEnded(MediaEngine engine) {
+		if (engine != getEngine()) return;
 		playerTask.cancel();
 		playerTask = engineEnded(engine);
 	}
@@ -1059,17 +1096,20 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback
 
 	@Override
 	public void onVideoSizeChanged(MediaEngine engine, int width, int height) {
+		if (engine != getEngine()) return;
 		VideoView v = getVideoView();
 		if (v != null) v.setSurfaceSize(engine);
 	}
 
 	@Override
 	public void onSubtitleStreamChanged(MediaEngine engine, @Nullable SubtitleStreamInfo info) {
+		if (engine != getEngine()) return;
 		fireBroadcastEvent(l -> l.onSubtitleStreamChanged(this, info));
 	}
 
 	@Override
 	public void onEngineError(MediaEngine engine, Throwable ex) {
+		if (engine != getEngine()) return;
 		String msg;
 		PlayableItem i = engine.getSource();
 
@@ -1279,17 +1319,23 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback
 
 	private void setPlaybackState(PlaybackStateCompat state) {
 		currentState = state;
+		int st = state.getState();
+		if ((st != STATE_NONE) && (st != STATE_STOPPED)) session.setActive(true);
 		session.setPlaybackState(state);
 		service.updateNotification(state.getState(), getCurrentItem());
 		fireBroadcastEvent(l -> l.onPlaybackStateChanged(this, state));
 
-		if (state.getState() == STATE_PLAYING) {
+		if (st == STATE_PLAYING) {
 			MediaEngine engine = getEngine();
 			if (engine == null) {
 				stopTimer();
 				return;
 			}
 			PlayableItem i = engine.getSource();
+			if (i == null) {
+				stopTimer();
+				return;
+			}
 			if (i.isTimerRequired()) startTimer(i, state.getPosition(), state.getPlaybackSpeed());
 		} else {
 			stopTimer();

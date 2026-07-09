@@ -4,7 +4,7 @@
     <string name="open_dashboard">Ouvrir le tableau de bord</string>
     <string name="dashboard_order">Ordre du tableau de bord</string>
     <string name="reset_dashboard_order">Réinitialiser l\'ordre du tableau de bord</string>
-    <string name="dashboard_order_sub">Contrôle aussi l\'ordre de la navigation inférieure</string>
+    <string name="dashboard_order_sub">Contrôle aussi l\'ordre de la navigation</string>
     <string name="dashboard_now_playing">Lecture en cours</string>
     <string name="dashboard_continue">Continuer à regarder</string>
     <string name="dashboard_continue_sub">%1$s - %2$s</string>
@@ -81,7 +81,6 @@
 
     <string name="nav_bar_pos">Position de la barre de navigation</string>
     <string name="nav_bar_pos_sub">Position actuelle : %1$s</string>
-    <string name="nav_bar_pos_bottom">Bas</string>
     <string name="nav_bar_pos_left">Gauche</string>
     <string name="nav_bar_pos_right">Droite</string>
 
@@ -89,7 +88,7 @@
     <string name="lang">Langue</string>
     <string name="trans_lang">Langue de traduction</string>
     <string name="hide_bars">Masquer les barres</string>
-    <string name="hide_bars_sub">Masquer les barres supérieure et inférieure lorsque le panneau de contrôle apparaît</string>
+    <string name="hide_bars_sub">Masquer les barres de l\'application lorsque le panneau de contrôle apparaît</string>
     <string name="show_pg_up_down">Afficher les boutons de page haut/bas</string>
     <string name="use_dpad_cursor">Utiliser le curseur pour la navigation avec la croix directionnelle</string>
     <string name="fullscreen_mode">Mode plein écran</string>

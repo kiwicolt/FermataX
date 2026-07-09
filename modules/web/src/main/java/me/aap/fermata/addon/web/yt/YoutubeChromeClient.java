@@ -4,9 +4,9 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 
+import me.aap.fermata.BuildConfig;
 import me.aap.fermata.addon.web.FermataChromeClient;
 import me.aap.fermata.addon.web.FermataWebView;
-import me.aap.fermata.BuildConfig;
 import me.aap.fermata.media.service.MediaSessionCallback;
 import me.aap.fermata.ui.activity.MainActivityDelegate;
 import me.aap.fermata.ui.view.VideoView;
@@ -55,6 +55,7 @@ public class YoutubeChromeClient extends FermataChromeClient {
 
 	@Override
 	public void onShowCustomView(View view, CustomViewCallback callback) {
+		view.setOnTouchListener(this::onTouchEvent);
 		getWebView().setVisibility(GONE);
 		super.onShowCustomView(view, callback);
 	}
@@ -69,6 +70,8 @@ public class YoutubeChromeClient extends FermataChromeClient {
 	}
 
 	protected boolean onTouchEvent(View v, MotionEvent event) {
-		return isFullScreen() && getFullScreenView().onTouchEvent(event);
+		if (!isFullScreen()) return false;
+		MainActivityDelegate.get(v.getContext()).getControlPanel().onVideoViewTouch(getFullScreenView(), event);
+		return true;
 	}
 }

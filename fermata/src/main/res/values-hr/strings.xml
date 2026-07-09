@@ -4,7 +4,7 @@
     <string name="open_dashboard">Otvori nadzornu ploču</string>
     <string name="dashboard_order">Redoslijed nadzorne ploče</string>
     <string name="reset_dashboard_order">Vrati redoslijed nadzorne ploče</string>
-    <string name="dashboard_order_sub">Upravlja i redoslijedom donje navigacije</string>
+    <string name="dashboard_order_sub">Upravlja i redoslijedom navigacije</string>
     <string name="dashboard_now_playing">Trenutno se reproducira</string>
     <string name="dashboard_continue">Nastavi gledati</string>
     <string name="dashboard_continue_sub">%1$s - %2$s</string>
@@ -76,7 +76,6 @@
 
     <string name="nav_bar_pos">Pozicija navigacijske trake</string>
     <string name="nav_bar_pos_sub">Trenutna pozicija: %1$s</string>
-    <string name="nav_bar_pos_bottom">Dolje</string>
     <string name="nav_bar_pos_left">Lijevo</string>
     <string name="nav_bar_pos_right">Desno</string>
 
@@ -84,7 +83,7 @@
     <string name="lang">Jezik</string>
     <string name="trans_lang">Jezik prijevoda</string>
     <string name="hide_bars">Sakrij trake</string>
-    <string name="hide_bars_sub">Sakrij gornje i donje trake kada se pojavi kontrolna ploča</string>
+    <string name="hide_bars_sub">Sakrij trake aplikacije kada se pojavi kontrolna ploča</string>
     <string name="show_pg_up_down">Prikaži gumbe za stranicu gore/dolje</string>
     <string name="use_dpad_cursor">Koristi pokazivač za navigaciju s D-pada</string>
     <string name="fullscreen_mode">Puni zaslon</string>

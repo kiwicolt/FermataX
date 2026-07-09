@@ -122,10 +122,18 @@ public class WebBrowserFragment extends MainActivityFragment
 		// Calling here onResume makes the video to not get freezed
 		// when you switch to another app and go back to Fermata
 		v.onResume();
+		if (!shouldRestoreFullScreenOnResume()) {
+			fullScreenOnResume = false;
+			return;
+		}
 		MainActivityDelegate.getActivityDelegate(getContext()).onSuccess(a -> a.post(() -> {
 			FermataChromeClient chrome = v.getWebChromeClient();
 			if (chrome != null) chrome.enterFullScreen();
 		}));
+	}
+
+	protected boolean shouldRestoreFullScreenOnResume() {
+		return true;
 	}
 
 	protected void registerListeners(MainActivityDelegate a) {

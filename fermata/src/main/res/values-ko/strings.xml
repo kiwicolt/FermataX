@@ -4,7 +4,7 @@
     <string name="open_dashboard">대시보드 열기</string>
     <string name="dashboard_order">대시보드 순서</string>
     <string name="reset_dashboard_order">대시보드 순서 초기화</string>
-    <string name="dashboard_order_sub">하단 탐색 순서도 함께 제어합니다</string>
+    <string name="dashboard_order_sub">탐색 순서도 함께 제어합니다</string>
     <string name="dashboard_now_playing">지금 재생 중</string>
     <string name="dashboard_continue">이어보기</string>
     <string name="dashboard_continue_sub">%1$s - %2$s</string>
@@ -81,7 +81,6 @@
 
     <string name="nav_bar_pos">네비게이션바 위치</string>
     <string name="nav_bar_pos_sub">현재 위치: %1$s</string>
-    <string name="nav_bar_pos_bottom">아래</string>
     <string name="nav_bar_pos_left">왼쪽</string>
     <string name="nav_bar_pos_right">오른쪽</string>
 
@@ -89,7 +88,7 @@
     <string name="lang">언어</string>
     <string name="trans_lang">번역 언어</string>
     <string name="hide_bars">바 숨기기</string>
-    <string name="hide_bars_sub">재생 컨트롤 패널이 열리면 위, 아래 바를 숨김</string>
+    <string name="hide_bars_sub">컨트롤 패널이 나타나면 앱 바 숨기기</string>
     <string name="show_pg_up_down">페이지 업/다운 버튼을 표시</string>
     <string name="use_dpad_cursor">D-pad 네비게이션을 위한 커서를 사용</string>
     <string name="fullscreen_mode">풀스크린 모드</string>

@@ -4,7 +4,7 @@
     <string name="open_dashboard">Apri dashboard</string>
     <string name="dashboard_order">Ordine dashboard</string>
     <string name="reset_dashboard_order">Reimposta ordine dashboard</string>
-    <string name="dashboard_order_sub">Controlla anche l\'ordine della navigazione inferiore</string>
+    <string name="dashboard_order_sub">Controlla anche l\'ordine della navigazione</string>
     <string name="dashboard_now_playing">In riproduzione</string>
     <string name="dashboard_continue">Continua a guardare</string>
     <string name="dashboard_continue_sub">%1$s - %2$s</string>
@@ -76,7 +76,6 @@
 
     <string name="nav_bar_pos">Posizione barra navigazione</string>
     <string name="nav_bar_pos_sub">Posizione impostata: %1$s</string>
-    <string name="nav_bar_pos_bottom">In basso</string>
     <string name="nav_bar_pos_left">Sinistra</string>
     <string name="nav_bar_pos_right">Destra</string>
 
@@ -84,7 +83,7 @@
     <string name="lang">Lingua</string>
     <string name="trans_lang">Lingua di traduzione</string>
     <string name="hide_bars">Nascondi barre</string>
-    <string name="hide_bars_sub">Nascondi barre superiore ed inferiore con pannello di controllo</string>
+    <string name="hide_bars_sub">Nascondi le barre dell\'app quando appare il pannello di controllo</string>
     <string name="show_pg_up_down">Mostra pulsanti pagina su/giù</string>
     <string name="use_dpad_cursor">Utilizza il cursore per la navigazione tramite D-pad</string>
     <string name="fullscreen_mode">Modalità schermo intero</string>

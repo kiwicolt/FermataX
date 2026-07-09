@@ -96,6 +96,7 @@ import me.aap.fermata.addon.AddonManager;
 import me.aap.fermata.addon.AddonState;
 import me.aap.fermata.addon.FermataActivityAddon;
 import me.aap.fermata.addon.FermataAddon;
+import me.aap.fermata.media.engine.MediaEngine;
 import me.aap.fermata.media.engine.MediaEngineManager;
 import me.aap.fermata.media.lib.AtvInterface;
 import me.aap.fermata.media.lib.DefaultMediaLib;
@@ -267,7 +268,7 @@ public class MainActivityDelegate extends ActivityDelegate
 		b.getMediaSessionCallback().getSession().setSessionActivity(
 				PendingIntent.getActivity(ctx, 0, new Intent(ctx, a.getClass()), FLAG_IMMUTABLE));
 		b.getMediaSessionCallback().addAssistant(this, isCarActivityNotMirror() ? 0 : 1);
-		if (b.getCurrentItem() == null) b.getMediaSessionCallback().onPrepare();
+		b.getMediaSessionCallback().prepareIfIdle();
 		init();
 
 		for (FermataAddon addon : AddonManager.get().getAddons()) {
@@ -627,13 +628,25 @@ public class MainActivityDelegate extends ActivityDelegate
 	}
 
 	public void setBarsHidden(boolean barsHidden) {
-		App.get().getHandler().post(() -> {
-			this.barsHidden = barsHidden;
-			int visibility = barsHidden ? GONE : VISIBLE;
-			ToolBarView tb = getToolBar();
-			if (tb.getMediator() != ToolBarView.Mediator.Invisible.instance) tb.setVisibility(visibility);
-			getNavBar().setVisibility(visibility);
-		});
+		App.get().getHandler().post(() -> setBarsHiddenNow(barsHidden));
+	}
+
+	public void setBarsHiddenNow(boolean barsHidden) {
+		if (!barsHidden && AUTO && videoMode && !isCurrentSplitMode()) {
+			ControlPanelView cp = getControlPanel();
+			if ((cp == null) || !cp.isVideoControlsVisible()) return;
+		}
+
+		this.barsHidden = barsHidden;
+		int visibility = barsHidden ? GONE : VISIBLE;
+		ToolBarView tb = getToolBar();
+		if (tb.getMediator() != ToolBarView.Mediator.Invisible.instance) tb.setVisibility(visibility);
+		getNavBar().setVisibility(visibility);
+	}
+
+	private boolean isCurrentSplitMode() {
+		MediaEngine engine = getMediaServiceBinder().getCurrentEngine();
+		return getBody().isBothMode() && (engine != null) && engine.isSplitModeSupported();
 	}
 
 	public void setVideoMode(boolean videoMode, @Nullable VideoView v) {
@@ -1101,7 +1114,7 @@ public class MainActivityDelegate extends ActivityDelegate
 		return switch (prefs.getNavBarPosPref(this)) {
 			case NavBarView.POSITION_LEFT -> R.layout.main_activity_left;
 			case NavBarView.POSITION_RIGHT -> R.layout.main_activity_right;
-			default -> R.layout.main_activity;
+			default -> R.layout.main_activity_left;
 		};
 	}
 

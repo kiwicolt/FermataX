@@ -1,12 +1,9 @@
 package me.aap.fermata.ui.fragment;
 
-import static android.view.View.FOCUS_DOWN;
 import static android.view.View.FOCUS_LEFT;
 import static android.view.View.FOCUS_RIGHT;
-import static android.view.View.FOCUS_UP;
 import static me.aap.fermata.BuildConfig.VERSION_CODE;
 import static me.aap.fermata.BuildConfig.VERSION_NAME;
-import static me.aap.utils.ui.UiUtils.isVisible;
 import static me.aap.utils.ui.UiUtils.showInfo;
 import static me.aap.utils.ui.view.NavBarItem.create;
 
@@ -27,9 +24,7 @@ import me.aap.fermata.R;
 import me.aap.fermata.addon.AddonInfo;
 import me.aap.fermata.addon.AddonManager;
 import me.aap.fermata.ui.activity.MainActivityDelegate;
-import me.aap.fermata.ui.policy.PlaybackLayoutPolicy;
-import me.aap.fermata.ui.view.BodyLayout;
-import me.aap.fermata.ui.view.ControlPanelView;
+import me.aap.fermata.ui.policy.BackNavigationPolicy;
 import me.aap.fermata.ui.view.MediaItemListView;
 import me.aap.fermata.util.Utils;
 import me.aap.utils.function.Supplier;
@@ -47,7 +42,6 @@ import me.aap.utils.ui.view.NavBarView;
 import me.aap.utils.ui.view.NavButtonView;
 import me.aap.utils.ui.view.PrefNavBarMediator;
 import me.aap.utils.ui.view.ScalableTextView;
-import me.aap.utils.ui.view.ToolBarView;
 
 /**
  * @author Andrey Pavlenko
@@ -58,13 +52,12 @@ public class NavBarMediator extends PrefNavBarMediator
 
 	@Override
 	protected List<NavBarItem> getItems(NavBarView nb) {
-		int max = nb.isBottom() ? nb.suggestItemCount() - 1 : Integer.MAX_VALUE;
 		List<DashboardItems.NavItem> navItems = DashboardItems.getNavItems(getPreferenceStore(nb));
 		List<NavBarItem> items = new ArrayList<>(navItems.size());
 		Context ctx = MainActivityDelegate.get(nb.getContext()).getLocalizedContext(nb.getContext());
 
 		for (DashboardItems.NavItem item : navItems) {
-			items.add(create(ctx, item.id, item.icon, item.title, items.size() < max));
+			items.add(create(ctx, item.id, item.icon, item.title, true));
 		}
 
 		return items;
@@ -72,7 +65,7 @@ public class NavBarMediator extends PrefNavBarMediator
 
 	@Override
 	protected boolean canSwap(NavBarView nb) {
-		return true;
+		return false;
 	}
 
 	@Override
@@ -157,26 +150,15 @@ public class NavBarMediator extends PrefNavBarMediator
 
 	@Override
 	public void itemReselected(View item, int id, ActivityDelegate a) {
-		BodyLayout b = ((MainActivityDelegate) a).getBody();
-		if (b.isVideoMode()) b.setMode(PlaybackLayoutPolicy.getModeAfterLeavingVideo(
-				((MainActivityDelegate) a).isCarActivity()));
-		else super.itemReselected(item, id, a);
+		MainActivityDelegate ma = (MainActivityDelegate) a;
+		if (BackNavigationPolicy.leaveVideoMode(ma)) return;
+		super.itemReselected(item, id, a);
 	}
 
 	@Nullable
 	@Override
 	public View focusSearch(NavBarView nb, View focused, int direction) {
-		if (direction == FOCUS_UP) {
-			if (!nb.isBottom()) return null;
-			Context ctx = nb.getContext();
-			ControlPanelView p = MainActivityDelegate.get(ctx).getControlPanel();
-			return isVisible(p) ? p.focusSearch() : MediaItemListView.focusSearchLast(ctx, focused);
-		} else if (direction == FOCUS_DOWN) {
-			if (!nb.isBottom()) return null;
-			Context ctx = nb.getContext();
-			ToolBarView tb = MainActivityDelegate.get(ctx).getToolBar();
-			if (isVisible(tb)) return tb.focusSearch();
-		} else if (direction == FOCUS_RIGHT) {
+		if (direction == FOCUS_RIGHT) {
 			if (nb.isLeft()) return MediaItemListView.focusSearchActive(nb.getContext(), focused);
 		} else if (direction == FOCUS_LEFT) {
 			if (nb.isRight()) return MediaItemListView.focusSearchActive(nb.getContext(), focused);

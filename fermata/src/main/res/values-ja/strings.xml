@@ -4,7 +4,7 @@
     <string name="open_dashboard">ダッシュボードを開く</string>
     <string name="dashboard_order">ダッシュボードの順序</string>
     <string name="reset_dashboard_order">ダッシュボード順序をリセット</string>
-    <string name="dashboard_order_sub">下部ナビの順序も制御します</string>
+    <string name="dashboard_order_sub">ナビの順序も制御します</string>
     <string name="dashboard_now_playing">再生中</string>
     <string name="dashboard_continue">続きから見る</string>
     <string name="dashboard_continue_sub">%1$s - %2$s</string>
@@ -81,7 +81,6 @@
 
     <string name="nav_bar_pos">ナビゲーションバーの位置</string>
     <string name="nav_bar_pos_sub">現在の位置: %1$s</string>
-    <string name="nav_bar_pos_bottom">下側</string>
     <string name="nav_bar_pos_left">左側</string>
     <string name="nav_bar_pos_right">右側</string>
 
@@ -89,7 +88,7 @@
     <string name="lang">言語</string>
     <string name="trans_lang">翻訳言語</string>
     <string name="hide_bars">バーを隠す</string>
-    <string name="hide_bars_sub">コントロールパネルが表示されたときに上部と下部のバーを非表示にします</string>
+    <string name="hide_bars_sub">コントロールパネルが表示されたときにアプリのバーを非表示にします</string>
     <string name="show_pg_up_down">ページアップ/ページダウンボタンを表示</string>
     <string name="use_dpad_cursor">D-pad(十字キー)ナビゲーションによるカーソルを使用する</string>
     <string name="fullscreen_mode">フルスクリーンモード</string>

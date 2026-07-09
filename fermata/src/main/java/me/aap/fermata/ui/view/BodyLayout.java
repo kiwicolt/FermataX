@@ -98,13 +98,16 @@ public class BodyLayout extends SplitLayout
 
 		switch (mode) {
 			case FRAME -> {
+				boolean keepExternalVideoMode = shouldKeepExternalVideoMode(a);
 				vv.setVisibility(GONE);
 				getSplitLine().setVisibility(GONE);
 				getSplitHandle().setVisibility(GONE);
 				getSwipeRefresh().setVisibility(VISIBLE);
 				lp.guidePercent = isPortrait() ? 0f : 1f;
-				a.setVideoMode(false, vv);
-				if (a.isBarsHidden()) a.setBarsHidden(false);
+				if (!keepExternalVideoMode) {
+					a.setVideoMode(false, vv);
+					if (a.isBarsHidden()) a.setBarsHidden(false);
+				}
 			}
 			case VIDEO -> {
 				vv.setVisibility(VISIBLE);
@@ -131,6 +134,16 @@ public class BodyLayout extends SplitLayout
 
 		gl.setLayoutParams(lp);
 		a.fireBroadcastEvent(MODE_CHANGED);
+	}
+
+	private boolean shouldKeepExternalVideoMode(MainActivityDelegate a) {
+		if (!me.aap.fermata.BuildConfig.AUTO && !a.isCarActivity()) return false;
+		MediaEngine eng = a.getMediaSessionCallback().getEngine();
+		if ((eng == null) || !eng.isVideoModeRequired() || eng.isSplitModeSupported()) return false;
+		ActivityFragment f = a.getActiveFragment();
+		if (!(f instanceof MainActivityFragment)) return false;
+		int id = ((MainActivityFragment) f).getFragmentId();
+		return (id == R.id.youtube_fragment) || (id == R.id.web_browser_fragment);
 	}
 
 	public VideoView getVideoView() {
@@ -202,18 +215,29 @@ public class BodyLayout extends SplitLayout
 		startingPlayback.cancel();
 		MainActivityDelegate a = getActivity();
 		if (!(a.getActiveFragment() instanceof MainActivityFragment f)) return;
-		if (f instanceof SubtitlesFragment) a.goToCurrent();
-		else if (!f.isVideoModeSupported()) return;
 		MediaEngine eng = a.getMediaServiceBinder().getCurrentEngine();
+		if (f instanceof SubtitlesFragment) a.goToCurrent();
+		else if (!f.isVideoModeSupported()) {
+			syncAudioPlaybackUi(a, newItem, eng);
+			return;
+		}
 		Mode mode = PlaybackLayoutPolicy.getModeOnPlayableChanged(getMode(), newItem, eng);
 
 		if (mode != getMode()) setMode(mode);
 		else if (PlaybackLayoutPolicy.shouldRefreshVideoInCurrentMode(mode, newItem, eng))
 			getVideoView().showVideo(false);
 
-		if ((eng != null) && (newItem != null) && !newItem.isVideo() && (getMode() == Mode.FRAME)) {
-			eng.selectSubtitleStream();
-		}
+		syncAudioPlaybackUi(a, newItem, eng);
+	}
+
+	private void syncAudioPlaybackUi(MainActivityDelegate a, @Nullable MediaLib.PlayableItem item,
+																	 @Nullable MediaEngine eng) {
+		if ((item == null) || item.isVideo()) return;
+		if (getMode() != Mode.FRAME) setMode(Mode.FRAME);
+		if ((eng != null) && (getMode() == Mode.FRAME)) eng.selectSubtitleStream();
+
+		ControlPanelView cp = a.getControlPanel();
+		if ((cp != null) && a.isCarActivity()) cp.setVisibility(View.VISIBLE);
 	}
 
 	@Override

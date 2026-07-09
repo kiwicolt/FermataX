@@ -29,7 +29,7 @@
     <string name="open_dashboard">Open dashboard</string>
     <string name="dashboard_order">Dashboard order</string>
     <string name="reset_dashboard_order">Reset dashboard order</string>
-    <string name="dashboard_order_sub">Also controls the bottom navigation order</string>
+    <string name="dashboard_order_sub">Also controls the navigation order</string>
     <string name="dashboard_now_playing">Now playing</string>
     <string name="dashboard_continue">Continue watching</string>
     <string name="dashboard_continue_sub">%1$s - %2$s</string>
@@ -83,7 +83,6 @@
 
     <string name="nav_bar_pos">Navigation bar position</string>
     <string name="nav_bar_pos_sub">Current position: %1$s</string>
-    <string name="nav_bar_pos_bottom">Bottom</string>
     <string name="nav_bar_pos_left">Left</string>
     <string name="nav_bar_pos_right">Right</string>
 
@@ -91,7 +90,7 @@
     <string name="lang">Language</string>
     <string name="trans_lang">Translation language</string>
     <string name="hide_bars">Hide bars</string>
-    <string name="hide_bars_sub">Hide top and bottom bars when the control panel appears</string>
+    <string name="hide_bars_sub">Hide app bars when the control panel appears</string>
     <string name="show_pg_up_down">Show page up/down buttons</string>
     <string name="use_dpad_cursor">Use cursor for D-pad navigation</string>
     <string name="fullscreen_mode">Fullscreen mode</string>

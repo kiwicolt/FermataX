@@ -41,7 +41,7 @@ public interface MainActivityPrefs
 	Pref<BooleanSupplier> FULLSCREEN = Pref.b("FULLSCREEN", false);
 	Pref<BooleanSupplier> SHOW_PG_UP_DOWN = Pref.b("SHOW_PG_UP_DOWN", true);
 	Pref<BooleanSupplier> USE_DPAD_CURSOR = AUTO ? Pref.b("USE_DPAD_CURSOR", true) : null;
-	Pref<IntSupplier> NAV_BAR_POS = Pref.i("NAV_BAR_POS", NavBarView.POSITION_BOTTOM);
+	Pref<IntSupplier> NAV_BAR_POS = Pref.i("NAV_BAR_POS", NavBarView.POSITION_LEFT);
 	Pref<DoubleSupplier> NAV_BAR_SIZE = Pref.f("NAV_BAR_SIZE", 1f);
 	Pref<DoubleSupplier> TOOL_BAR_SIZE = Pref.f("TOOL_BAR_SIZE", 1f);
 	Pref<DoubleSupplier> CONTROL_PANEL_SIZE = Pref.f("CONTROL_PANEL_SIZE", 1f);
@@ -73,6 +73,8 @@ public interface MainActivityPrefs
 	Pref<IntSupplier> NAV_BAR_POS_AA =
 			AUTO ? Pref.i("NAV_BAR_POS_AA", NavBarView.POSITION_LEFT) : null;
 	Pref<DoubleSupplier> NAV_BAR_SIZE_AA = AUTO ? Pref.f("NAV_BAR_SIZE_AA", 1f) : null;
+	Pref<BooleanSupplier> NAV_BAR_SCROLL_NUDGE_AA =
+			AUTO ? Pref.b("NAV_BAR_SCROLL_NUDGE_AA", false) : null;
 	Pref<DoubleSupplier> TOOL_BAR_SIZE_AA = AUTO ? Pref.f("TOOL_BAR_SIZE_AA", 1f) : null;
 	Pref<DoubleSupplier> CONTROL_PANEL_SIZE_AA = AUTO ? Pref.f("CONTROL_PANEL_SIZE_AA", 1f) : null;
 	Pref<DoubleSupplier> TEXT_ICON_SIZE_AA = AUTO ? Pref.f("TEXT_ICON_SIZE_AA", 1f) : null;
@@ -144,8 +146,11 @@ public interface MainActivityPrefs
 	}
 
 	default int getNavBarPosPref(MainActivityDelegate a) {
-		if (AUTO && a.isCarActivity()) return getIntPref(NAV_BAR_POS_AA);
-		return getIntPref(NAV_BAR_POS);
+		Pref<IntSupplier> pref = (AUTO && a.isCarActivity()) ? NAV_BAR_POS_AA : NAV_BAR_POS;
+		int pos = getIntPref(pref);
+		if ((pos == NavBarView.POSITION_LEFT) || (pos == NavBarView.POSITION_RIGHT)) return pos;
+		applyIntPref(pref, NavBarView.POSITION_LEFT);
+		return NavBarView.POSITION_LEFT;
 	}
 
 	static boolean hasNavBarSizePref(MainActivityDelegate a, List<Pref<?>> prefs) {
@@ -154,7 +159,7 @@ public interface MainActivityPrefs
 	}
 
 	default float getNavBarSizePref(MainActivityDelegate a) {
-		if (AUTO && a.isCarActivity()) return getFloatPref(NAV_BAR_SIZE_AA);
+		if (AUTO && a.isCarActivity()) return Math.max(1.4f, getFloatPref(NAV_BAR_SIZE_AA));
 		return getFloatPref(NAV_BAR_SIZE);
 	}
 

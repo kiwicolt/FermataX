@@ -68,6 +68,16 @@ public class TvFragment extends MediaLibFragment {
 		return TvFloatingButtonMediator.instance;
 	}
 
+	@Override
+	public boolean isAddSourceSupported() {
+		return isRootItem();
+	}
+
+	@Override
+	public int getAddSourceIcon() {
+		return R.drawable.tv_add;
+	}
+
 	public void navBarItemReselected(int itemId) {
 		getAdapter().setParent(getRootItem());
 	}
