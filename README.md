@@ -112,7 +112,7 @@ On Windows, use `.\gradlew.bat` instead of `./gradlew`.
 
 ## Donate
 
-If you enjoy this app or my app installation service, feel free to buy me a coffee:
+If you enjoy this app or want to try my app installation service, feel free to buy me a coffee:
 
 <p>
   <a href="https://ko-fi.com/fermatax">
