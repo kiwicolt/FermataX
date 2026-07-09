@@ -1,0 +1,107 @@
+name: Build AAB (Play internal testing)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '17'
+  JAVA_DISTRIBUTION: 'temurin'
+
+jobs:
+  build:
+    name: Build signed AAB
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set version (auto-incrementing versionCode)
+        run: |
+          ver_file=gradle/libs.versions.toml
+          version() { grep -Po "(?<=$1).+" $ver_file | sed -e 's/[= "]//g'; }
+          # versionCode must increase on every Play upload; derive from run number
+          version_code=$((1000 + ${{ github.run_number }}))
+          app_version="$(version appVersionName)-$(git rev-parse --short HEAD)"
+          sed -ri "s/appVersionCode.+/appVersionCode = \"$version_code\"/" $ver_file
+          sed -ri "s/appVersionName.+/appVersionName = \"$app_version\"/" $ver_file
+          echo "APP_VERSION=$app_version" >> $GITHUB_ENV
+          echo "VERSION_CODE=$version_code" >> $GITHUB_ENV
+          echo "ANDROID_NDK_VERSION=$(version ndkVersion)" >> $GITHUB_ENV
+
+      - name: Prepare app identity
+        env:
+          APP_NAME: ${{ vars.APP_NAME }}
+          APP_ID_SFX: ${{ vars.APP_ID_SFX }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          sanitize() {
+            tr '[:upper:]' '[:lower:]' <<< "$1" \
+              | sed -E 's/[^a-z0-9]+/_/g; s/^_+|_+$//g; s/_+/_/g; s/^([0-9])/x\1/'
+          }
+          owner="$(sanitize "$OWNER")"
+          echo "APP_NAME=${APP_NAME:-FermataX ($OWNER)}" >> "$GITHUB_ENV"
+          echo "APP_ID_SFX=${APP_ID_SFX:-.$owner}" >> "$GITHUB_ENV"
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Cache Android NDK
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/lib/android/sdk/ndk/${{ env.ANDROID_NDK_VERSION }}
+          key: ${{ runner.os }}-android-ndk-${{ env.ANDROID_NDK_VERSION }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Create keystore and local.properties
+        run: |
+          if [ -z "${{ secrets.CI_KEYSTORE }}" ]; then
+            echo "::error::CI_KEYSTORE secret is missing - add repo secrets first"
+            exit 1
+          fi
+          echo "${{ secrets.CI_KEYSTORE }}" | base64 -d > keystore.jks
+
+          cat > local.properties <<EOF
+          storeFile=$(pwd)/keystore.jks
+          keyAlias=${{ secrets.CI_ALIAS }}
+          keyPassword=${{ secrets.CI_KEY_PWD }}
+          storePassword=${{ secrets.CI_KEYSTORE_PWD }}
+          EOF
+
+      - name: Build AAB
+        env:
+          NO_GS: true
+        run: |
+          echo "App name: $APP_NAME"
+          echo "Package suffix: $APP_ID_SFX"
+          echo "Version code: $VERSION_CODE"
+          ./gradlew :fermata:bundleAutoRelease --build-cache \
+            "-PAPP_NAME=$APP_NAME" \
+            "-PAPP_ID_SFX=$APP_ID_SFX"
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: fermata-aab-${{ env.APP_VERSION }}-vc${{ env.VERSION_CODE }}
+          path: fermata/build/outputs/bundle/autoRelease/*.aab
+          retention-days: 30
+          if-no-files-found: error
