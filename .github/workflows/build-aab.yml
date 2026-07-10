@@ -9,6 +9,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 env:
   JAVA_VERSION: '17'
   JAVA_DISTRIBUTION: 'temurin'
@@ -105,3 +108,21 @@ jobs:
           path: fermata/build/outputs/bundle/autoRelease/*.aab
           retention-days: 30
           if-no-files-found: error
+
+      - name: Publish GitHub release (triggers email notification)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-vc${{ env.VERSION_CODE }}
+          name: "FermataX ${{ env.APP_VERSION }} (vc${{ env.VERSION_CODE }})"
+          files: fermata/build/outputs/bundle/autoRelease/*.aab
+          body: |
+            ## New build ready to install
+
+            **Version:** ${{ env.APP_VERSION }} — versionCode ${{ env.VERSION_CODE }}
+
+            ### To get it on your phone
+            1. Download the `.aab` file attached below
+            2. Upload it in [Play Console → Internal testing](https://play.google.com/console/developers/8108443972269259326/app/4973819986002646021/tracks/internal-testing) → **Create new release** → publish
+            3. Your phone updates via Play, or force it from the [tester opt-in page](https://play.google.com/apps/internaltest/4701623631697142765)
+
+            Commit: ${{ github.sha }}
