@@ -124,24 +124,15 @@ public class FermataServiceUiBinder extends BasicEventBroadcaster<FermataService
 	}
 
 	public void onPlayPauseButtonClick() {
-		var time = SystemClock.uptimeMillis();
-		if ((time - playPauseTime) < 300) {
-			mediaController.getTransportControls().stop();
-		} else {
-			playPauseTime = time;
-			if (isPlaying()) getMediaSessionCallback().onPause();
-			else getMediaSessionCallback().onPlay();
-		}
+		// Bottom-bar button acts as Play/Stop (tap stops instead of pausing).
+		if (isPlaying()) mediaController.getTransportControls().stop();
+		else getMediaSessionCallback().onPlay();
 	}
 
 	private boolean onPlayPauseButtonLongClick(View v) {
-		if (getMediaSessionCallback().getPlaybackControlPrefs().getPlayPauseStopPref()) {
-			mediaController.getTransportControls().stop();
-		} else if (isPlaying()) {
-			mediaController.getTransportControls().pause();
-		} else {
-			mediaController.getTransportControls().play();
-		}
+		// Long-press = pause/resume (short tap = stop).
+		if (isPlaying()) mediaController.getTransportControls().pause();
+		else mediaController.getTransportControls().play();
 		return true;
 	}
 
@@ -500,13 +491,9 @@ public class FermataServiceUiBinder extends BasicEventBroadcaster<FermataService
 				else stopProgressUpdate();
 
 				if (playPauseButton != null) {
-					if (eng.canPause()) {
-						playPauseButton.setSelected(false);
-						playPauseButton.setActivated(true);
-					} else {
-						playPauseButton.setSelected(false);
-						playPauseButton.setActivated(false);
-					}
+					// Show the Stop icon while playing (bottom-bar button is Play/Stop).
+					playPauseButton.setSelected(false);
+					playPauseButton.setActivated(false);
 				}
 			} else {
 				stopProgressUpdate();
