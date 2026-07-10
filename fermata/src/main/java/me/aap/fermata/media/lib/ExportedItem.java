@@ -225,6 +225,18 @@ public class ExportedItem extends PlayableItemBase {
 		return orig.getUserAgent();
 	}
 
+	@Override
+	@Nullable
+	public String getDrmLicenseUri() {
+		return orig.getDrmLicenseUri();
+	}
+
+	@Override
+	@Nullable
+	public String getDrmLicenseType() {
+		return orig.getDrmLicenseType();
+	}
+
 	@NonNull
 	@Override
 	public String toString() {

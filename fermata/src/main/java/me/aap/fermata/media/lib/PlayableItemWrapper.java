@@ -235,6 +235,18 @@ public class PlayableItemWrapper implements PlayableItem {
 	}
 
 	@Override
+	@Nullable
+	public String getDrmLicenseUri() {
+		return getItem().getDrmLicenseUri();
+	}
+
+	@Override
+	@Nullable
+	public String getDrmLicenseType() {
+		return getItem().getDrmLicenseType();
+	}
+
+	@Override
 	public int hashCode() {
 		return getItem().hashCode();
 	}
