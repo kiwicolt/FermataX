@@ -86,18 +86,8 @@ public class YoutubeFragment extends WebBrowserFragment implements FermataServic
 			YoutubeChromeClient chromeClient = new YoutubeChromeClient(webView, videoView);
 			webView.init(addon, webClient, chromeClient);
 			registerListeners(a);
+			// Always open the YouTube home feed and never auto-resume/auto-play a video.
 			webView.loadUrl(DEFAULT_URL);
-			if (!DEFAULT_URL.equals(startUrl)) a.post(() -> webView.loadUrl(startUrl));
-			a.postDelayed(() -> {
-				PreferenceStore ps = addon.getPreferenceStore();
-				long pos = ps.getLongPref(RESUME_POS);
-				ps.removePref(RESUME_POS);
-				MediaSessionCallback cb = a.getMediaSessionCallback();
-				if (cb.getEngine() instanceof YoutubeMediaEngine) {
-					if (pos > 0L) cb.onSeekTo(pos);
-					if (pause) cb.onPause();
-				}
-			}, 3000L);
 		});
 	}
 
@@ -154,10 +144,8 @@ public class YoutubeFragment extends WebBrowserFragment implements FermataServic
 				FermataServiceUiBinder b = a.getMediaServiceBinder();
 				if (YoutubeMediaEngine.isYoutubeItem(b.getCurrentItem()) && b.isPlaying()) {
 					b.getMediaSessionCallback().onPause();
-					playOnResume = true;
-				} else {
-					playOnResume = false;
 				}
+				playOnResume = false;
 			});
 		}
 		super.onPause();
