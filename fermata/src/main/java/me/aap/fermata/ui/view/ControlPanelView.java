@@ -872,6 +872,7 @@ public class ControlPanelView extends ConstraintLayout
 																		 PlayableItem pi,
 																		 boolean initRepeat) {
 			super.buildPlayableMenu(a, b, pi, false);
+			b.addItem(R.id.control_stop, R.drawable.stop, R.string.stop);
 
 			BrowsableItemPrefs p = pi.getParent().getPrefs();
 			MediaEngine eng = a.getMediaSessionCallback().getEngine();
@@ -923,7 +924,10 @@ public class ControlPanelView extends ConstraintLayout
 			PlayableItem pi;
 			MediaEngine eng;
 
-			if (id == R.id.audio_effects_fragment) {
+			if (id == R.id.control_stop) {
+				getActivity().getMediaServiceBinder().stop();
+				return true;
+			} else if (id == R.id.audio_effects_fragment) {
 				eng = getActivity().getMediaSessionCallback().getEngine();
 				if ((eng != null) && (eng.getAudioEffects() != null))
 					getActivity().showFragment(R.id.audio_effects_fragment);
