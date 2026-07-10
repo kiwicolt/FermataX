@@ -170,8 +170,9 @@ public class YoutubeWebView extends FermataWebView {
 				  function notifyState(v) {
 				    if (!v) return;
 				    v.style.objectFit = scale;
+				    if (!isVideoPage()) return;
 				    if (!v.paused && !v.ended) event(%d, videoUrl(v));
-				    else if (isVideoPage()) event(%d, videoUrl(v));
+				    else event(%d, videoUrl(v));
 				  }
 				  function attachVideoListeners(v) {
 				    if (!v || v.__fermataAttached) {
@@ -182,7 +183,7 @@ public class YoutubeWebView extends FermataWebView {
 				    v.style.objectFit = scale;
 				    %s
 				    notifyState(v);
-				    v.addEventListener('playing', function() { event(%d, videoUrl(v)); });
+				    v.addEventListener('playing', function() { if (isVideoPage()) event(%d, videoUrl(v)); });
 				    v.addEventListener('pause', function() { event(%d, videoUrl(v)); });
 				    v.addEventListener('ended', function() { event(%d, null); });
 				    v.addEventListener('click', function() { event(%d, null); }, true);
@@ -219,8 +220,9 @@ public class YoutubeWebView extends FermataWebView {
 				  var v = document.querySelector('video');
 				  if (!v) return;
 				  var url = v.currentSrc || v.src || location.href || '';
+				  if ((location.pathname !== '/watch') && !location.pathname.startsWith('/shorts/')) return;
 				  if (!v.paused && !v.ended) %s(%d, url);
-				  else if ((location.pathname === '/watch') || location.pathname.startsWith('/shorts/')) %s(%d, url);
+				  else %s(%d, url);
 				})();""".formatted(JS_EVENT, JS_VIDEO_PLAYING, JS_EVENT, JS_VIDEO_READY), null);
 	}
 
