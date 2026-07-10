@@ -109,6 +109,20 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
+      - name: Check Play credentials
+        run: echo "HAS_PLAY_JSON=${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}" >> $GITHUB_ENV
+
+      - name: Upload to Play internal testing track
+        if: env.HAS_PLAY_JSON == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: me.app.fermataX.auto.kiwicolt
+          releaseFiles: fermata/build/outputs/bundle/autoRelease/*.aab
+          track: internal
+          status: completed
+          releaseName: "${{ env.VERSION_CODE }} (${{ env.APP_VERSION }})"
+
       - name: Publish GitHub release (triggers email notification)
         uses: softprops/action-gh-release@v2
         with:
@@ -116,13 +130,13 @@ jobs:
           name: "FermataX ${{ env.APP_VERSION }} (vc${{ env.VERSION_CODE }})"
           files: fermata/build/outputs/bundle/autoRelease/*.aab
           body: |
-            ## New build ready to install
+            ## New build available
 
             **Version:** ${{ env.APP_VERSION }} — versionCode ${{ env.VERSION_CODE }}
 
-            ### To get it on your phone
-            1. Download the `.aab` file attached below
-            2. Upload it in [Play Console → Internal testing](https://play.google.com/console/developers/8108443972269259326/app/4973819986002646021/tracks/internal-testing) → **Create new release** → publish
-            3. Your phone updates via Play, or force it from the [tester opt-in page](https://play.google.com/apps/internaltest/4701623631697142765)
+            This build was uploaded to Play internal testing automatically.
+            Your phone will update on its own, or force it from the [tester opt-in page](https://play.google.com/apps/internaltest/4701623631697142765) / Play Store app page.
+
+            (Manual fallback: download the `.aab` below and upload in [Play Console → Internal testing](https://play.google.com/console/developers/8108443972269259326/app/4973819986002646021/tracks/internal-testing).)
 
             Commit: ${{ github.sha }}
