@@ -170,7 +170,23 @@ public class ExoPlayerEngine extends MediaEngineBase implements Player.Listener 
 		buffering = false;
 
 		Uri uri = source.getLocation();
-		MediaItem m = MediaItem.fromUri(uri);
+		String drmUri = source.getDrmLicenseUri();
+		MediaItem m;
+		if (drmUri != null) {
+			// Kodi license_key may be "url|headers|postdata|response"; use the URL part.
+			int bar = drmUri.indexOf('|');
+			String licUrl = (bar == -1) ? drmUri : drmUri.substring(0, bar);
+			m = new MediaItem.Builder()
+					.setUri(uri)
+					.setDrmConfiguration(
+							new MediaItem.DrmConfiguration.Builder(C.WIDEVINE_UUID)
+									.setLicenseUri(licUrl)
+									.setMultiSession(true)
+									.build())
+					.build();
+		} else {
+			m = MediaItem.fromUri(uri);
+		}
 		isHls = Util.inferContentType(uri) == C.CONTENT_TYPE_HLS;
 		player.setMediaItem(m);
 		player.prepare();
