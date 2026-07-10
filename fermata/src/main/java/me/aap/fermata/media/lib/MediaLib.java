@@ -404,6 +404,18 @@ public interface MediaLib {
 			return null;
 		}
 
+		/** Widevine (or other) DRM license server URL for this item, or null if not DRM protected. */
+		@Nullable
+		default String getDrmLicenseUri() {
+			return null;
+		}
+
+		/** DRM license type, e.g. "com.widevine.alpha", or null. */
+		@Nullable
+		default String getDrmLicenseType() {
+			return null;
+		}
+
 		@Nullable
 		default MediaEngine getMediaEngine(@Nullable MediaEngine current,
 																			 MediaEngine.Listener listener) {

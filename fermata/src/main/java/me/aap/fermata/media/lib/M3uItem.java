@@ -96,6 +96,8 @@ public class M3uItem extends BrowsableItemBase {
 		String trackCatchup = null;
 		String trackCatchupDays = null;
 		String trackCatchupSource = null;
+		String drmLicenseType = null;
+		String drmLicenseUri = null;
 		long duration = 0;
 		byte type = M3uTrackItem.TYPE_UNKNOWN;
 		boolean first = true;
@@ -227,6 +229,18 @@ public class M3uItem extends BrowsableItemBase {
 					if (first) cover = trim(l.substring(8));
 					else logo = trim(l.substring(8));
 					continue;
+				} else if (l.startsWith("#KODIPROP:")) {
+					int eq = l.indexOf('=', 10);
+					if (eq != -1) {
+						String key = l.substring(10, eq).trim();
+						String val = l.substring(eq + 1).trim();
+						if (key.endsWith("license_type")) {
+							drmLicenseType = val;
+						} else if (key.endsWith("license_key")) {
+							drmLicenseUri = val;
+						}
+					}
+					continue;
 				} else if (l.startsWith("#EXT-X-MEDIA:")) {
 					byte t = 0;
 					if (l.contains("TYPE=AUDIO")) t = M3uTrackItem.TYPE_AUDIO;
@@ -273,6 +287,8 @@ public class M3uItem extends BrowsableItemBase {
 						g.tracks.add(track);
 					}
 
+					if (drmLicenseUri != null) track.setDrm(drmLicenseType, drmLicenseUri);
+
 					CollectionUtils.compute(uriToTrack, track.getResource().getRid().toString(), (u, t) -> {
 						if (t == null) return Collections.singletonList(track);
 						List<M3uTrackItem> values = new ArrayList<>(t.size() + 1);
@@ -283,6 +299,7 @@ public class M3uItem extends BrowsableItemBase {
 				}
 
 				name = group = album = artist = genre = logo = tvgId = tvgName = null;
+				drmLicenseType = drmLicenseUri = null;
 				trackCatchup = catchup;
 				trackCatchupDays = catchupDays;
 				trackCatchupSource = catchupSource;

@@ -37,6 +37,8 @@ public class M3uTrackItem extends PlayableItemBase {
 	private final String tvgName;
 	private final long duration;
 	private final byte type;
+	private String drmLicenseType;
+	private String drmLicenseUri;
 
 	protected M3uTrackItem(String id, BrowsableItem parent, int trackNumber, VirtualResource file,
 												 String name, String album, String artist, String genre, String logo,
@@ -166,5 +168,22 @@ public class M3uTrackItem extends PlayableItemBase {
 	public String getUserAgent() {
 		VirtualResource r = getM3uItem().getResource();
 		return (r instanceof M3uFile) ? ((M3uFile) r).getUserAgent() : null;
+	}
+
+	void setDrm(String licenseType, String licenseUri) {
+		this.drmLicenseType = licenseType;
+		this.drmLicenseUri = licenseUri;
+	}
+
+	@Nullable
+	@Override
+	public String getDrmLicenseType() {
+		return drmLicenseType;
+	}
+
+	@Nullable
+	@Override
+	public String getDrmLicenseUri() {
+		return drmLicenseUri;
 	}
 }
