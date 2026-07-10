@@ -23,6 +23,7 @@
     <item name="tool_pg_down" type="id" />
 
     <item name="menu" type="id" />
+    <item name="control_stop" type="id" />
 
     <item name="dashboard_fragment" type="id" />
     <item name="dashboard_settings" type="id" />
