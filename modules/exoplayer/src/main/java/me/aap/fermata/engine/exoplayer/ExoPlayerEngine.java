@@ -34,6 +34,10 @@ import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.audio.AudioSink;
 import androidx.media3.exoplayer.audio.DefaultAudioSink;
 import androidx.media3.exoplayer.audio.DefaultAudioTrackBufferSizeProvider;
+import androidx.media3.exoplayer.drm.DefaultDrmSessionManager;
+import androidx.media3.exoplayer.drm.DrmSessionManager;
+import androidx.media3.exoplayer.drm.FrameworkMediaDrm;
+import androidx.media3.exoplayer.drm.HttpMediaDrmCallback;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.exoplayer.source.MediaSource;
 
@@ -112,7 +116,31 @@ public class ExoPlayerEngine extends MediaEngineBase implements Player.Listener 
 		super(listener);
 		DefaultDataSource.Factory dsFactory = new DefaultDataSource.Factory(ctx, httpDsFactory);
 		MediaSource.Factory msFactory =
-				new DefaultMediaSourceFactory(ctx).setDataSourceFactory(dsFactory);
+				new DefaultMediaSourceFactory(ctx).setDataSourceFactory(dsFactory)
+						.setDrmSessionManagerProvider(mediaItem -> {
+							MediaItem.LocalConfiguration lc = mediaItem.localConfiguration;
+							MediaItem.DrmConfiguration drm = (lc != null) ? lc.drmConfiguration : null;
+							if ((drm == null) || (drm.licenseUri == null)) {
+								return DrmSessionManager.DRM_UNSUPPORTED;
+							}
+							HttpMediaDrmCallback cb = new HttpMediaDrmCallback(
+									drm.licenseUri.toString(), new DefaultHttpDataSource.Factory());
+							return new DefaultDrmSessionManager.Builder()
+									.setUuidAndExoMediaDrmProvider(C.WIDEVINE_UUID, uuid -> {
+										try {
+											FrameworkMediaDrm fd = FrameworkMediaDrm.newInstance(uuid);
+											// Force Widevine L3 on Android Auto so a non-secure video decoder
+											// is used. A secure decoder's output is blocked from the projected
+											// (virtual) car display, which shows as audio-only / black video.
+											if (BuildConfig.AUTO) fd.setPropertyString("securityLevel", "L3");
+											return fd;
+										} catch (Exception e) {
+											throw new RuntimeException(e);
+										}
+									})
+									.setMultiSession(true)
+									.build(cb);
+						});
 		player = new ExoPlayer.Builder(ctx, new DefaultRenderersFactory(ctx) {
 			{
 				setEnableDecoderFallback(true);
